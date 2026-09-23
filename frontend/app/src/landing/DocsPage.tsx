@@ -1,6 +1,5 @@
 import { Breadcrumbs } from './components/Breadcrumbs';
-
-const REPOSITORY_URL = 'https://github.com/Architects-of-Change-Protocol/Architects_of_Change_Protocol';
+import { REPOSITORY_URL } from './brand';
 const repositoryPath = (path: string) => `${REPOSITORY_URL}/blob/main/${path}`;
 const repositoryDirectory = (path: string) => `${REPOSITORY_URL}/tree/main/${path}`;
 
@@ -60,6 +59,29 @@ export const renderDocsPage = () => {
               View public source <span className="ml-2" aria-hidden>↗</span>
             </a>
           </div>
+        </div>
+      </section>
+
+      <section className="border-b border-white/10">
+        <div className="mx-auto max-w-6xl px-6 py-12">
+          <a
+            href="/docs/manifesto"
+            className="group block rounded-3xl border border-cyan-300/20 bg-cyan-300/[0.04] p-7 transition hover:border-cyan-300/40 hover:bg-cyan-300/[0.06] md:p-9"
+          >
+            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300/70">Foundational document</p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight">Soberanía Manifesto v2.0</h2>
+                <p className="mt-4 max-w-3xl text-sm leading-7 text-white/62">
+                  Human sovereignty, private property, explicit authority, bounded autonomy, consent, obligations,
+                  evidence, portability, challenge and exit. Published as a draft for review and ratification.
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-semibold text-cyan-200 group-hover:text-cyan-100">
+                Read the manifesto →
+              </span>
+            </div>
+          </a>
         </div>
       </section>
 
