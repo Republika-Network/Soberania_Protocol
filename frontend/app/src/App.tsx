@@ -14,6 +14,7 @@ import { GovernedAccessPage } from './landing/enterprise/GovernedAccessPage';
 import { renderDocsPage } from './landing/DocsPage';
 import { renderContactPage } from './landing/ContactPage';
 import { renderAboutPage } from './landing/AboutPage';
+import { ManifestoPage } from './landing/ManifestoPage';
 
 function getView() {
   const params = new URLSearchParams(window.location.search);
@@ -60,6 +61,8 @@ export default function App() {
   if (pathname === '/ai-governance-vs-ai-sovereignty') return <GovVsSovPage />;
   if (pathname === '/research') return <ResearchHubPage />;
   if (pathname === '/what-is-ai-sovereignty') return <WhatIsAiSovereigntyPage />;
+  if (pathname === '/docs') return renderDocsPage();
+  if (pathname === '/docs/manifesto') return <ManifestoPage />;
   if (view === 'assurance') return renderAssurancePage();
   if (view === 'docs') return renderDocsPage();
   if (view === 'enterprise') return renderEnterprisePage();
