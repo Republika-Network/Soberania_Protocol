@@ -1,6 +1,6 @@
-import { LogoRotating } from '../../components/logo/LogoRotating';
 import { FRONTERA_SYSTEMS_NAME, FRONTERA_SYSTEMS_URL } from '../brand';
 import { SovereignMirrorVisual } from './SovereignMirrorVisual';
+import { SoberaniaMark } from './SoberaniaMark';
 
 export function Hero() {
   return (
@@ -14,7 +14,7 @@ export function Hero() {
       <div className="relative z-10 mx-auto grid min-h-[760px] max-w-[94rem] items-center gap-10 px-6 py-16 lg:grid-cols-[minmax(0,.82fr)_minmax(520px,1.18fr)] lg:gap-4 lg:py-8">
         <div className="max-w-2xl lg:pl-4 xl:pl-12">
           <div className="flex items-center gap-3">
-            <LogoRotating size={18} inverted />
+            <SoberaniaMark className="h-7 w-6" />
             <p className="font-mono text-[10px] font-bold tracking-[0.19em] text-violet-200/72 uppercase">
               A more sovereign digital world
             </p>
