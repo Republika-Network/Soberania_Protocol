@@ -502,7 +502,21 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background: #0b0b1a;
+  /* Its own surface: a deeper navy-amethyst than the hero, so the chapter
+     reads as separate rather than as the hero's footer. */
+  background:
+    radial-gradient(ellipse 60% 70% at 78% 30%, rgba(76, 46, 140, 0.22), transparent 70%),
+    linear-gradient(180deg, #0e0c24 0%, #0c0b1f 55%, #09081a 100%);
+  border-top: 1px solid rgba(201, 168, 247, 0.22);
+}
+/* Chapter divider: an amethyst hairline that fades across the top edge. */
+.sob-sphere::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(201, 168, 247, 0.7) 18%, rgba(201, 168, 247, 0.25) 62%, transparent 100%);
+  box-shadow: 0 0 18px rgba(167, 120, 250, 0.45);
 }
 .sob-sphere__bg {
   position: absolute;
@@ -514,7 +528,7 @@
   object-position: 80% top;
   opacity: 0.55;
 }
-.sob-sphere__inner { padding: 3.5rem 1.25rem 3rem; }
+.sob-sphere__inner { padding: 4.5rem 1.25rem 4.5rem; }
 .sob-sphere__title {
   margin-top: 1.1rem;
   font-family: var(--sob-serif);
@@ -553,12 +567,19 @@
 @media (min-width: 1024px) {
   .sob-sphere { --u: calc(100cqw / 1672); }
   .sob-sphere > * { --u: calc(100cqw / 1672); }
-  .sob-sphere__bg { height: auto; aspect-ratio: 1672 / 240; opacity: 1; }
+  .sob-sphere__bg {
+    height: 74%;
+    object-position: 85% 40%;
+    opacity: 0.8;
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 45%, transparent 100%);
+    mask-image: linear-gradient(180deg, #000 0%, #000 45%, transparent 100%);
+  }
   .sob-sphere__inner {
     display: grid;
     grid-template-columns: calc(491 * var(--u)) calc(500 * var(--u)) 1fr;
-    grid-template-rows: auto auto;
-    padding: calc(22 * var(--u)) calc(70 * var(--u)) calc(26 * var(--u)) calc(86 * var(--u));
+    grid-template-rows: auto 1fr;
+    min-height: clamp(500px, 32cqw, 600px);
+    padding: clamp(72px, 5cqw, 96px) calc(70 * var(--u)) clamp(72px, 5cqw, 96px) calc(86 * var(--u));
   }
   .sob-sphere__head { grid-column: 1; }
   .sob-sphere__eyebrow { font-size: max(9.5px, calc(11 * var(--u))); gap: calc(14 * var(--u)); letter-spacing: 0.3em; }
@@ -591,7 +612,10 @@
   }
   .sob-sphere__atlas {
     grid-column: 1 / -1;
-    margin-top: calc(10 * var(--u));
+    align-self: end;
+    margin-top: clamp(64px, 5.5cqw, 104px);
+    padding-top: clamp(28px, 2.2cqw, 40px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     gap: 0;
   }
