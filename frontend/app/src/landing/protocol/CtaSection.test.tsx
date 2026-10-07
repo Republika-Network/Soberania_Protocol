@@ -20,7 +20,7 @@ describe('Protocol closing handoff', () => {
 
     const links = screen.getAllByRole('link');
     expect(links.map((link) => link.textContent?.trim())).toEqual([
-      'View @aoc/protocol on GitHub',
+      'View protocol source on GitHub',
       'Read the Docs',
     ]);
     expect(links[0]).toHaveAttribute(
