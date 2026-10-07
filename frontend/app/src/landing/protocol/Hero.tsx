@@ -1,78 +1,130 @@
-import { FRONTERA_SYSTEMS_NAME, FRONTERA_SYSTEMS_URL } from '../brand';
-import { SovereignMirrorVisual } from './SovereignMirrorVisual';
-import { SoberaniaMark } from './SoberaniaMark';
+import type { CSSProperties } from 'react';
+import heroArt from '../../assets/soberania/soberania-hero-mirror.webp';
+import assetsSpecimen from '../../assets/soberania/specimen-assets.webp';
+import rightsSpecimen from '../../assets/soberania/specimen-rights.webp';
+import consentSpecimen from '../../assets/soberania/specimen-consent.webp';
+import claimsSpecimen from '../../assets/soberania/specimen-claims.webp';
+import provenanceSpecimen from '../../assets/soberania/specimen-provenance.webp';
+import { SphereIcon } from './SphereIcon';
+import type { SphereElementId } from './sphereElements';
+import './SoberaniaHome.css';
+
+// The hero is a raster artwork (the human subject, the luminous boundary and
+// the same person reflected as an amethyst digital representation) with every
+// piece of text, CTA and annotation layered on top as real HTML. On desktop
+// the whole composition is laid out on the approved mock's 1672px grid:
+// coordinates below are mock pixels, scaled by --u (see SoberaniaHome.css).
+type Annotation = {
+  id: SphereElementId;
+  label: string;
+  /** Icon specimen box, top-left corner. */
+  box?: [number, number];
+  /** Photographic specimen: x, y, width, height. */
+  thumb?: [number, number, number, number, string];
+  /** Label text: left edge and vertical center. */
+  at: [number, number];
+  plus?: number;
+  /** Right end of the hairline under the label. */
+  rule: number;
+};
+
+const ANNOTATIONS: Annotation[] = [
+  { id: 'identity', label: 'Identity', box: [1286, 102], at: [1359, 125], plus: 1449, rule: 1469 },
+  { id: 'property', label: 'Property', box: [1401, 151], at: [1478, 172], plus: 1576, rule: 1592 },
+  { id: 'assets', label: 'Assets', box: [1354, 230], thumb: [1530, 199, 67, 72, assetsSpecimen], at: [1430, 253], plus: 1501, rule: 1516 },
+  { id: 'rights', label: 'Rights', box: [1413, 303], thumb: [1564, 284, 62, 56, rightsSpecimen], at: [1488, 326], plus: 1560, rule: 1562 },
+  { id: 'consent', label: 'Consent', box: [1361, 381], thumb: [1546, 357, 49, 86, consentSpecimen], at: [1436, 405], plus: 1516, rule: 1531 },
+  { id: 'claims', label: 'Claims', box: [1419, 454], thumb: [1563, 466, 67, 59, claimsSpecimen], at: [1494, 479], rule: 1556 },
+  { id: 'provenance', label: 'Provenance', thumb: [1386, 529, 77, 57, provenanceSpecimen], at: [1478, 551], plus: 1585, rule: 1601 },
+  { id: 'authority', label: 'Authority', box: [1423, 600], at: [1497, 623], plus: 1597, rule: 1613 },
+];
+
+const META = ['Identity', 'Property', 'Assets', 'Rights', 'Consent', 'Claims', 'Provenance', 'Authority'];
+
+const pos = (vars: Record<string, number>) =>
+  Object.fromEntries(Object.entries(vars).map(([k, v]) => [`--${k}`, v])) as CSSProperties;
 
 export function Hero() {
   return (
-    <section id="overview" className="soberania-hero relative isolate overflow-hidden scroll-mt-16 bg-[#070912]">
-      <div className="soberania-atlas-grid absolute inset-0 opacity-50" aria-hidden="true" />
-      <div
-        className="absolute inset-0 bg-[radial-gradient(circle_at_73%_44%,rgba(124,58,237,.18),transparent_30%),radial-gradient(circle_at_24%_28%,rgba(91,33,182,.08),transparent_26%)]"
-        aria-hidden="true"
-      />
+    <section id="overview" className="sob-hero scroll-mt-16">
+      <figure className="sob-hero__art">
+        <img
+          src={heroArt}
+          alt="A traveller stands before a luminous digital boundary, facing their own reflection rendered in amethyst crystal and network light."
+          fetchPriority="high"
+        />
+      </figure>
 
-      <div className="relative z-10 mx-auto grid min-h-[760px] max-w-[94rem] items-center gap-10 px-6 py-16 lg:grid-cols-[minmax(0,.82fr)_minmax(520px,1.18fr)] lg:gap-4 lg:py-8">
-        <div className="max-w-2xl lg:pl-4 xl:pl-12">
-          <div className="flex items-center gap-3">
-            <SoberaniaMark className="h-7 w-6" />
-            <p className="font-mono text-[10px] font-bold tracking-[0.19em] text-violet-200/72 uppercase">
-              A more sovereign digital world
-            </p>
-          </div>
+      <div className="sob-hero__copy">
+        <p className="sob-eyebrow sob-hero__eyebrow">A more sovereign digital world</p>
 
-          <h1 className="soberania-serif mt-7 text-[3.45rem] leading-[.93] tracking-[-.045em] text-white sm:text-6xl lg:text-[5.2rem]">
-            You are sovereign.
-            <span className="mt-2 block text-violet-300">What is yours should be too.</span>
-          </h1>
+        <h1 className="sob-hero__title">
+          You are <em>sovereign.</em>
+          <br />
+          What is <em>yours</em> should be too.
+        </h1>
 
-          <p className="mt-7 max-w-xl text-[16px] leading-7 text-slate-300/78 md:text-[17px]">
-            Your identity, property, assets, rights and authority increasingly exist across digital
-            systems. Soberanía Protocol defines portable structures that help them preserve who they
-            belong to, what they mean and how they may be governed.
-          </p>
+        <p className="sob-hero__lede">
+          Your identity, property, assets, rights and authority increasingly exist across digital
+          systems. Soberanía Protocol defines the structures that let them preserve who they belong
+          to, what they mean and how they may be governed.
+        </p>
 
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <a
-              href="#sovereign-sphere"
-              className="inline-flex items-center justify-center border border-violet-400/65 bg-violet-500 px-6 py-3.5 text-sm font-bold text-white transition hover:bg-violet-400"
-            >
-              Explore the sovereign sphere <span className="ml-2">→</span>
-            </a>
-            <a
-              href="/?view=docs"
-              className="inline-flex items-center justify-center border border-white/18 bg-white/[.035] px-6 py-3.5 text-sm font-semibold text-white transition hover:border-white/35 hover:bg-white/[.06]"
-            >
-              Read the docs
-            </a>
-          </div>
-
-          <div className="mt-9 flex flex-wrap gap-x-4 gap-y-2 font-mono text-[9px] tracking-[.15em] text-white/36 uppercase">
-            <span>Identity</span><span>Property</span><span>Assets</span><span>Consent</span><span>Provenance</span><span>Authority</span>
-          </div>
-
-          <p className="mt-8 max-w-md border-l border-violet-300/25 pl-4 font-mono text-[10px] leading-5 tracking-[.12em] text-violet-100/45 uppercase">
-            The medium may change. The owner, meaning and authority should not.
-          </p>
+        <div className="sob-hero__ctas">
+          <a href="#sovereign-sphere" className="sob-btn sob-btn--primary">
+            Explore the protocol <span aria-hidden="true">→</span>
+          </a>
+          <a href="/?view=docs" className="sob-btn sob-btn--ghost">
+            Read the docs
+          </a>
         </div>
 
-        <div className="relative min-h-[560px] self-stretch lg:min-h-[700px]">
-          <div className="absolute inset-0 flex items-center">
-            <SovereignMirrorVisual />
-          </div>
+        <ul className="sob-hero__meta" aria-label="What the sovereign sphere includes">
+          {META.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+
+        <div className="sob-hero__principle">
+          <p className="sob-hero__principle-label">Sovereign by design</p>
+          <p className="sob-hero__principle-text">
+            The medium may change.
+            <br />
+            The owner, meaning and authority should not.
+          </p>
         </div>
       </div>
 
-      <div className="relative z-10 mx-auto flex max-w-[94rem] flex-col gap-3 border-t border-white/10 px-6 py-5 font-mono text-[9px] tracking-[.17em] text-white/34 uppercase sm:flex-row sm:items-center sm:justify-between">
-        <span>Human subject ↔ digital representation</span>
-        <a
-          href={FRONTERA_SYSTEMS_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="text-violet-200/65 transition hover:text-violet-100"
-        >
-          {FRONTERA_SYSTEMS_NAME} governs action in real systems ↗
-        </a>
-      </div>
+      <ul className="sob-hero__annotations" aria-label="The digital reflection carries">
+        {ANNOTATIONS.map((a) => (
+          <li key={a.id} className="sob-annot">
+            {a.box ? (
+              <span className="sob-annot__box sob-specimen" style={pos({ x: a.box[0], y: a.box[1] })}>
+                <SphereIcon id={a.id} className="sob-specimen__icon" />
+              </span>
+            ) : null}
+            {a.thumb ? (
+              <img
+                src={a.thumb[4]}
+                alt=""
+                className={`sob-annot__thumb${a.box ? '' : ' sob-annot__thumb--lead'}`}
+                style={pos({ x: a.thumb[0], y: a.thumb[1], w: a.thumb[2], h: a.thumb[3] })}
+                loading="lazy"
+              />
+            ) : null}
+            {!a.box ? (
+              <span className="sob-annot__mobile-icon sob-specimen" aria-hidden="true">
+                <SphereIcon id={a.id} className="sob-specimen__icon" />
+              </span>
+            ) : null}
+            <span className="sob-annot__label" style={pos({ x: a.at[0], y: a.at[1] })}>
+              {a.label}
+            </span>
+            {a.plus ? <span className="sob-annot__plus" aria-hidden="true" style={pos({ x: a.plus, y: a.at[1] })} /> : null}
+            <span className="sob-annot__rule" aria-hidden="true" style={pos({ x: a.at[0], y: a.at[1], w: a.rule - a.at[0] })} />
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

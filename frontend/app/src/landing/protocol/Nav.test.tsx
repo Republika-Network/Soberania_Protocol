@@ -13,7 +13,7 @@ describe('Protocol navigation', () => {
   it('points the desktop nav at the Frontera Systems site', () => {
     render(<ProtocolNav />);
 
-    const link = screen.getByRole('link', { name: 'Frontera Systems' });
+    const link = screen.getByRole('link', { name: 'Frontera' });
     expect(link).toHaveAttribute('href', FRONTERA_SYSTEMS_URL);
     expect(link).toHaveAttribute('target', '_blank');
     expect(screen.queryByRole('link', { name: /Soberanía Enterprise/i })).not.toBeInTheDocument();
@@ -26,18 +26,20 @@ describe('Protocol navigation', () => {
 
     const mobileNav = document.getElementById('protocol-mobile-nav');
     expect(mobileNav).not.toBeNull();
-    const link = screen.getAllByRole('link', { name: 'Frontera Systems' }).find((el) => mobileNav!.contains(el));
+    const link = screen.getAllByRole('link', { name: 'Frontera' }).find((el) => mobileNav!.contains(el));
     expect(link).toBeDefined();
     expect(link).toHaveAttribute('href', FRONTERA_SYSTEMS_URL);
   });
 
-  it('leaves the surrounding Protocol nav untouched', () => {
+  it('renders the homepage navigation from the approved design', () => {
     render(<ProtocolNav />);
 
     expect(screen.getByRole('link', { name: /Soberanía Protocol/ })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Sovereign Sphere' })).toHaveAttribute('href', '/#sovereign-sphere');
     expect(screen.getByRole('link', { name: 'Digital Assets' })).toHaveAttribute('href', '/#digital-asset');
-    expect(screen.getByRole('link', { name: 'Capabilities' })).toHaveAttribute('href', '/#capabilities');
-    expect(screen.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/?view=about');
-    expect(screen.getAllByRole('link', { name: 'Launch App' })[0]).toHaveAttribute('href', '/app');
+    expect(screen.getByRole('link', { name: 'For Builders' })).toHaveAttribute('href', '/#developers');
+    expect(screen.getByRole('link', { name: 'Docs' })).toHaveAttribute('href', '/?view=docs');
+    expect(screen.getByRole('link', { name: /Explore the protocol/ })).toHaveAttribute('href', '/#sovereign-sphere');
+    expect(screen.queryByRole('link', { name: 'Launch App' })).not.toBeInTheDocument();
   });
 });
