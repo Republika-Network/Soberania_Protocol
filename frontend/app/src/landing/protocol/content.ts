@@ -49,10 +49,10 @@ export type CapabilityFamily = {
 // replacing what used to be two separate sections making overlapping
 // points: CapabilityFamilies.tsx's "what a digital asset can declare" grid,
 // and Sovereignty.tsx's "keeps its meaning wherever it goes" pitch.
-export const CAPABILITY_DOCK_EYEBROW = 'What can a digital asset express?';
-export const CAPABILITY_DOCK_HEADLINE = 'A digital asset should keep its meaning wherever it goes.';
+export const CAPABILITY_DOCK_EYEBROW = '03 / Portable Meaning';
+export const CAPABILITY_DOCK_HEADLINE = 'Keep the meaning. Change the system.';
 export const CAPABILITY_DOCK_PARAGRAPH =
-  "Capabilities are the properties a digital asset can declare about itself. Together, they preserve its identity, integrity, origin, terms and meaning as it moves across systems, applications and custodians.";
+  "Systems change. Custodians change. Applications disappear. Capabilities preserve identity, integrity, origin, terms and meaning so a digital asset does not have to become a different thing every time its surrounding system changes.";
 
 // The eight capability families a digital asset can express — the display
 // model for the canonical Sovereignty Capabilities defined by
