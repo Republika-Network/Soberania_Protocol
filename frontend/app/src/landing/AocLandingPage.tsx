@@ -1,6 +1,7 @@
 import { ProtocolFooter } from './components/ProtocolFooter';
 import { ProtocolNav } from './protocol/Nav';
 import { Hero } from './protocol/Hero';
+import { SovereignSphereSection } from './protocol/SovereignSphereSection';
 import { FileToAsset } from './protocol/FileToAsset';
 import { CapabilityDockSection } from './protocol/CapabilityDockSection';
 import { AssetComposition } from './protocol/AssetComposition';
@@ -23,10 +24,11 @@ export const AocLandingPage = () => {
   usePageMeta();
 
   return (
-    <main className="min-h-screen bg-white text-slate-900 font-sans">
+    <main className="min-h-screen bg-[#f8f7f3] text-slate-900 font-sans">
       <ProtocolNav />
 
       <Hero />
+      <SovereignSphereSection />
       <FileToAsset />
       {/* id="sovereignty" is a legacy deep-link target: the section used to be
           split into a Capabilities grid and a separate Sovereignty pitch,
