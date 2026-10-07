@@ -7,7 +7,7 @@ export function Developers() {
       <div className="soberania-parchment-grid absolute inset-0 opacity-60" aria-hidden="true" />
       <div className="relative mx-auto grid max-w-7xl gap-10 px-6 py-16 md:grid-cols-[.82fr_1.18fr] md:items-center md:py-20">
         <div>
-          <p className="font-mono text-[10px] font-bold tracking-[.18em] text-violet-800 uppercase">05 / For builders</p>
+          <p className="font-mono text-[10px] font-bold tracking-[.18em] text-violet-800 uppercase">04 / For builders</p>
           <h2 className="soberania-serif mt-4 text-4xl leading-[1.02] tracking-[-.035em] text-slate-950 md:text-5xl">Build a more sovereign internet.</h2>
           <p className="mt-4 max-w-xl text-[14px] leading-6 text-slate-600">
             @aoc/protocol exposes the versioned public contract layer for capability, proof, credential-manifest and claim shapes under Apache-2.0. It is not yet published to a package registry; build it from source in the repository.
