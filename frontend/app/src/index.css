@@ -69,3 +69,49 @@ html {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+
+/* Soberanía Protocol — sovereign sphere art direction */
+.soberania-serif {
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-weight: 400;
+}
+
+.soberania-atlas-grid {
+  background-image:
+    linear-gradient(rgba(196,181,253,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(196,181,253,.055) 1px, transparent 1px),
+    radial-gradient(circle at 74% 44%, rgba(139,92,246,.12), transparent 28%);
+  background-size: 58px 58px, 58px 58px, auto;
+  mask-image: linear-gradient(to bottom, transparent 0, black 12%, black 88%, transparent 100%);
+}
+
+.soberania-parchment-grid {
+  background-image:
+    linear-gradient(rgba(76,29,149,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(76,29,149,.055) 1px, transparent 1px),
+    radial-gradient(circle at 64% 38%, rgba(124,58,237,.08), transparent 32%);
+  background-size: 72px 72px, 72px 72px, auto;
+}
+
+.soberania-light-grid {
+  background-image:
+    linear-gradient(rgba(76,29,149,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(76,29,149,.045) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+@keyframes sovereignBoundaryShimmer {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(196,181,253,.2)); }
+  50% { filter: drop-shadow(0 0 16px rgba(196,181,253,.42)); }
+}
+
+.soberania-hero svg rect[fill="url(#boundary-line)"] {
+  animation: sovereignBoundaryShimmer 9s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .soberania-hero svg rect[fill="url(#boundary-line)"] {
+    animation: none !important;
+  }
+}
