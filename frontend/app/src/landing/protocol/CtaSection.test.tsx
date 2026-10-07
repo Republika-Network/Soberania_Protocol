@@ -14,7 +14,7 @@ describe('Protocol closing handoff', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Soberanía Protocol makes identity, capabilities and governance portable by design.',
+        'Identity, property, assets, capabilities and governance should retain their meaning beyond the system that happens to hold them today.',
       ),
     ).toBeInTheDocument();
 
