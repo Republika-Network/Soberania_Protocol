@@ -3,9 +3,7 @@ import { ProtocolNav } from './protocol/Nav';
 import { Hero } from './protocol/Hero';
 import { SovereignSphereSection } from './protocol/SovereignSphereSection';
 import { FileToAsset } from './protocol/FileToAsset';
-import { CapabilityDockSection } from './protocol/CapabilityDockSection';
-import { AssetComposition } from './protocol/AssetComposition';
-import { ProtocolToEnterprise } from './protocol/ProtocolToEnterprise';
+import { ProtocolToFronteraCompact } from './protocol/ProtocolToFronteraCompact';
 import { Developers } from './protocol/Developers';
 import { CtaSection } from './protocol/CtaSection';
 import { usePageMeta } from './protocol/usePageMeta';
@@ -30,13 +28,8 @@ export const AocLandingPage = () => {
       <Hero />
       <SovereignSphereSection />
       <FileToAsset />
-      {/* id="sovereignty" is a legacy deep-link target: the section used to be
-          split into a Capabilities grid and a separate Sovereignty pitch,
-          now fused into one Capability Dock (see CapabilityDockSection.tsx). */}
       <span id="sovereignty" aria-hidden="true" className="block h-0" />
-      <CapabilityDockSection />
-      <AssetComposition />
-      <ProtocolToEnterprise />
+      <ProtocolToFronteraCompact />
       <Developers />
       <CtaSection />
 
