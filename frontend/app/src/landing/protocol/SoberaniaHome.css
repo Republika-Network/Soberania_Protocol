@@ -238,28 +238,46 @@
 /* ─────────────────────── Hero (mock grid, >=1024px) ─────────────────────── */
 
 @media (min-width: 1024px) {
+  /* The hero is at least the mock's 1672:700 frame, but its height comes
+     from the in-flow copy, so it always contains its own content. The
+     artwork stays pinned at its natural size so the annotations and the
+     connector lines baked into it remain registered. */
   .sob-hero {
     --u: calc(100cqw / 1672);
     display: block;
     padding-top: 0;
-    aspect-ratio: 1672 / 700;
+    min-height: calc(700 * var(--u));
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   }
   .sob-hero > * { --u: calc(100cqw / 1672); }
   .sob-hero__art {
     position: absolute;
-    inset: 0;
+    inset: 0 0 auto;
+    height: calc(700 * var(--u));
     aspect-ratio: auto;
   }
-  .sob-hero__art img { object-position: center; }
+  .sob-hero__art img { object-position: center top; }
   .sob-hero__art::after { display: none; }
+  /* When the copy pushes the hero past the artwork, fade the artwork's
+     bottom edge into the hero surface; zero height when nothing extends. */
+  .sob-hero::after {
+    --ext: clamp(0px, calc((100% - 700 * var(--u)) * 3), 96px);
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(700 * var(--u) - var(--ext));
+    height: var(--ext);
+    background: linear-gradient(180deg, rgba(7, 7, 18, 0), #070712);
+    pointer-events: none;
+  }
 
   .sob-hero__copy {
-    position: absolute;
-    left: calc(85 * var(--u));
-    top: calc(150 * var(--u));
+    position: relative;
+    z-index: 1;
+    margin-left: calc(85 * var(--u));
     width: calc(760 * var(--u));
-    padding: 0;
+    padding: calc(150 * var(--u)) 0 32px;
   }
   .sob-hero__eyebrow {
     font-size: max(10px, calc(11.4 * var(--u)));
@@ -321,6 +339,7 @@
 
   .sob-hero__annotations {
     position: absolute;
+    z-index: 1;
     inset: 0;
     display: block;
     padding: 0;
