@@ -8,13 +8,13 @@ const m = MINERALS.amethyst;
 // with one secondary public-protocol action beneath it.
 export function CtaSection() {
   return (
-    <section className="scroll-mt-16 bg-[#0B1220] px-6 py-24 md:py-28 text-center">
-      <div className="max-w-2xl mx-auto flex flex-col items-center">
-        <h2 className="text-[32px] md:text-5xl font-extrabold tracking-tight text-white">
+    <section className="soberania-cta relative overflow-hidden scroll-mt-16 bg-[#080a12] px-6 py-24 text-center md:py-32">
+      <div className="soberania-atlas-grid absolute inset-0 opacity-35" aria-hidden="true" /><div className="relative max-w-3xl mx-auto flex flex-col items-center">
+        <p className="font-mono text-[10px] font-bold tracking-[.18em] text-violet-200/55 uppercase">A more sovereign digital world</p><h2 className="soberania-serif mt-5 text-[40px] md:text-6xl font-normal tracking-[-.035em] text-white">
           Ownership should survive the platform.
         </h2>
-        <p className="mt-4 max-w-xl text-base md:text-lg text-slate-400">
-          Soberanía Protocol makes identity, capabilities and governance portable by design.
+        <p className="mt-5 max-w-2xl text-base md:text-lg leading-relaxed text-slate-400">
+          Identity, property, assets, capabilities and governance should retain their meaning beyond the system that happens to hold them today.
         </p>
 
         <a
