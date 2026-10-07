@@ -60,11 +60,11 @@ export function FileToAsset() {
   const traitsRevealed = reduceMotion || phase === 'emit' || phase === 'rest';
 
   return (
-    <section id="digital-asset" className="scroll-mt-16 max-w-7xl mx-auto px-6 py-20 border-t border-slate-200">
+    <section id="digital-asset" className="relative scroll-mt-16 overflow-hidden border-t border-slate-200/70 bg-[#faf9f6]"><div className="soberania-light-grid absolute inset-0 opacity-35" aria-hidden="true" /><div className="relative max-w-7xl mx-auto px-6 py-20">
       <SectionHeader
-        eyebrow="From File to Digital Asset"
-        title="A file contains content. A digital asset carries more."
-        description="Any file — a photo, a document, a dataset — is just bytes with a format and a place it happens to sit. A Soberanía-compatible digital asset adds a layer that compatible systems can interpret: who it belongs to, whether it's intact, where it came from, and what it's allowed to do."
+        eyebrow="02 / Digital Assets"
+        title="A file contains data. A digital asset carries meaning."
+        description="A file becomes more than bytes when compatible systems can interpret its identity, integrity, provenance and capabilities independently of where that file happens to live."
         mineral="amethyst"
       />
 
@@ -117,6 +117,7 @@ export function FileToAsset() {
         </a>
         .
       </p>
+      </div>
     </section>
   );
 }

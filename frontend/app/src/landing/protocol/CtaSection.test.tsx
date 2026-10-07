@@ -14,13 +14,13 @@ describe('Protocol closing handoff', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Soberanía Protocol makes identity, capabilities and governance portable by design.',
+        'Identity, property, assets, capabilities and governance should retain their meaning beyond the system that happens to hold them today.',
       ),
     ).toBeInTheDocument();
 
     const links = screen.getAllByRole('link');
     expect(links.map((link) => link.textContent?.trim())).toEqual([
-      'View @aoc/protocol on GitHub',
+      'View protocol source on GitHub',
       'Read the Docs',
     ]);
     expect(links[0]).toHaveAttribute(

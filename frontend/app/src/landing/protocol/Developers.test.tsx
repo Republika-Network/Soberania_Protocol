@@ -35,7 +35,7 @@ describe('Developers orbital composition', () => {
   it('preserves the established calls to action', () => {
     render(<Developers />);
 
-    expect(screen.getByRole('link', { name: 'View @aoc/protocol on GitHub' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'View protocol source on GitHub' })).toHaveAttribute(
       'href',
       'https://github.com/Republika-Network/Soberania_Protocol/tree/main/packages/protocol',
     );

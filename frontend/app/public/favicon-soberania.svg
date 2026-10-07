@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -0.5 116 116">
+  <!-- Soberanía mark: geometry identical to src/landing/protocol/SoberaniaMark.tsx,
+       with a higher-contrast Amethyst ramp so it reads at 16–48px on light and dark tabs. -->
+  <defs>
+    <linearGradient id="a" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F3EAFF"/>
+      <stop offset=".4" stop-color="#C79BFF"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="b" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E4DBFF"/>
+      <stop offset=".5" stop-color="#9B6BFA"/>
+      <stop offset="1" stop-color="#4C1D95"/>
+    </linearGradient>
+    <linearGradient id="c" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#5B21B6"/>
+      <stop offset=".55" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#EBDDFF"/>
+    </linearGradient>
+  </defs>
+  <path d="M10 28 32 15 32 43 10 56Z" fill="url(#a)"/>
+  <path d="M32 15 57 1 57 29 32 43Z" fill="url(#b)"/>
+  <path d="M61 38 86 52 86 80 61 66Z" fill="url(#a)"/>
+  <path d="M12 59 36 45 60 58 36 72Z" fill="url(#c)"/>
+  <path d="M12 80 36 66 60 79 36 93Z" fill="url(#b)"/>
+  <path d="M61 72 86 86 86 114 61 100Z" fill="url(#a)"/>
+</svg>

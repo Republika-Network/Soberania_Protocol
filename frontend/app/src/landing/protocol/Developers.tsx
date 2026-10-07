@@ -1,67 +1,37 @@
-import { BUILDER_AUDIENCES } from './content';
-import { SectionHeader, Card } from '../enterprise/primitives';
-import { MINERALS } from '../enterprise/minerals';
-import { LogoRotating } from '../../components/logo/LogoRotating';
-import type { CSSProperties } from 'react';
 import { PROTOCOL_PACKAGE_URL } from '../brand';
-import './Developers.css';
-
-const m = MINERALS.amethyst;
+import { SoberaniaMark } from './SoberaniaMark';
 
 export function Developers() {
   return (
-    <section id="developers" className="scroll-mt-16 max-w-7xl mx-auto px-6 py-20 border-t border-slate-200">
-      <div className="developers-layout">
-        <div className="developers-copy">
-          <SectionHeader
-            eyebrow="Developers and Builders"
-            title="Who builds with Soberanía Protocol."
-            description="@aoc/protocol publishes the versioned public contract layer — capability, proof, credential-manifest and claim shapes — as an open-source package under Apache-2.0. It's not yet published to a registry; build it from source in the repository."
-            mineral="amethyst"
-          />
-
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <a
-              href={PROTOCOL_PACKAGE_URL}
-              target="_blank"
-              rel="noreferrer"
-              className={`inline-flex items-center justify-center rounded-xl border ${m.border} px-6 py-3 text-sm font-semibold ${m.text} transition hover:bg-violet-50`}
-            >
-              View @aoc/protocol on GitHub
+    <section id="developers" className="relative overflow-hidden border-t border-slate-200 bg-[#f7f4ee]">
+      <div className="soberania-parchment-grid absolute inset-0 opacity-60" aria-hidden="true" />
+      <div className="relative mx-auto grid max-w-7xl gap-10 px-6 py-16 md:grid-cols-[.82fr_1.18fr] md:items-center md:py-20">
+        <div>
+          <p className="font-mono text-[10px] font-bold tracking-[.18em] text-violet-800 uppercase">04 / For builders</p>
+          <h2 className="soberania-serif mt-4 text-4xl leading-[1.02] tracking-[-.035em] text-slate-950 md:text-5xl">Build a more sovereign internet.</h2>
+          <p className="mt-4 max-w-xl text-[14px] leading-6 text-slate-600">
+            Soberanía Protocol exposes a versioned public contract layer for capability, proof, credential-manifest and claim shapes under Apache-2.0. It is not yet published to a package registry; build it from source in the repository.
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <a href={PROTOCOL_PACKAGE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center bg-violet-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-violet-600">
+              View protocol source on GitHub
             </a>
-            <a
-              href="/?view=docs"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300"
-            >
+            <a href="/?view=docs" className="inline-flex items-center justify-center border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400">
               Read the docs
             </a>
           </div>
         </div>
 
-        <div className="developers-orbit">
-          <div className="developers-orbit__center" aria-hidden="true">
-            <LogoRotating size={56} inverted={false} />
+        <div className="border border-slate-900/10 bg-[#0c0d14] p-5 text-white shadow-[0_24px_70px_rgba(15,23,42,.12)]">
+          <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+            <SoberaniaMark className="h-8 w-8" />
+            <div><p className="font-mono text-[9px] tracking-[.15em] text-violet-200/55 uppercase">public contract layer</p><p className="text-sm font-semibold">Soberanía Protocol</p></div>
           </div>
+          <pre className="mt-5 overflow-x-auto text-[11px] leading-6 text-slate-300"><code>{`const provenance = getSovereigntyCapabilityByKey('provenance')
 
-          <div className="developers-orbit__ring" aria-hidden="true" />
-
-          <ol className="developers-orbit__layer" aria-label="Developer and builder audiences">
-            {BUILDER_AUDIENCES.map((audience, index) => {
-              const angle = -90 + index * (360 / BUILDER_AUDIENCES.length);
-              const orbitStyle = { '--orbit-angle': `${angle}deg` } as CSSProperties;
-
-              return (
-                <li className="developers-orbit__node" style={orbitStyle} key={audience.name} tabIndex={0}>
-                  <div className="developers-orbit__counter">
-                    <Card className="developer-card p-3.5">
-                      <p className="text-xs font-extrabold leading-snug text-slate-900">{audience.name}</p>
-                      <p className="mt-1 text-[11px] leading-snug text-slate-500">{audience.summary}</p>
-                    </Card>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+provenance?.key      // 'provenance'
+provenance?.version  // '1.0.0'
+provenance?.name     // 'Provenance'`}</code></pre>
         </div>
       </div>
     </section>
