@@ -5,7 +5,7 @@ export function ProtocolToFronteraCompact() {
     <section id="protocol-to-enterprise" className="relative overflow-hidden border-t border-slate-200 bg-[#11101a] text-white">
       <div className="soberania-atlas-grid absolute inset-0 opacity-35" aria-hidden="true" />
       <div className="relative mx-auto max-w-7xl px-6 py-20 md:py-24">
-        <p className="font-mono text-[10px] font-bold tracking-[.18em] text-violet-200/58 uppercase">04 / From protocol to systems</p>
+        <p className="font-mono text-[10px] font-bold tracking-[.18em] text-violet-200/58 uppercase">03 / From protocol to systems</p>
         <div className="mt-5 grid gap-10 lg:grid-cols-[.82fr_1.18fr] lg:items-center">
           <div>
             <h2 className="soberania-serif max-w-[11ch] text-4xl leading-[1.02] tracking-[-.035em] md:text-6xl">
