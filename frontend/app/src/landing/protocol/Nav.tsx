@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { LogoRotating } from '../../components/logo/LogoRotating';
 import { MINERALS } from '../enterprise/minerals';
 import { FRONTERA_SYSTEMS_NAME, FRONTERA_SYSTEMS_URL } from '../brand';
+import { SoberaniaMark } from './SoberaniaMark';
 
 // Structurally identical to ../enterprise/Nav.tsx's EnterpriseNav (same
 // sticky dark bar, same sizing, spacing and mobile-disclosure interaction) —
@@ -14,8 +14,9 @@ import { FRONTERA_SYSTEMS_NAME, FRONTERA_SYSTEMS_URL } from '../brand';
 // the one item that leaves this origin — desktop and mobile both render from
 // this single list, so the `external` flag applies to each automatically.
 const NAV_ITEMS: { label: string; href: string; external?: boolean }[] = [
+  { label: 'Sovereign Sphere', href: '/#sovereign-sphere' },
   { label: 'Digital Assets', href: '/#digital-asset' },
-  { label: 'Capabilities', href: '/#capabilities' },
+  { label: 'Builders', href: '/#developers' },
   { label: FRONTERA_SYSTEMS_NAME, href: FRONTERA_SYSTEMS_URL, external: true },
   { label: 'About', href: '/?view=about' },
 ];
@@ -29,7 +30,7 @@ export function ProtocolNav() {
       <div className="max-w-[100rem] mx-auto px-6">
         <div className="flex h-16 items-center gap-3">
           <a href="/" className="flex items-center gap-3 shrink-0">
-            <LogoRotating size={26} inverted />
+            <SoberaniaMark className="h-8 w-7" />
             <span className="font-semibold tracking-tight text-white">Soberanía Protocol</span>
           </a>
 
