@@ -23,6 +23,12 @@
 // repeat this value literally — they cannot import it.
 export const SOBERANIA_PROTOCOL_URL = 'https://soberaniaprotocol.org';
 
+// The 1200x630 Open Graph / Twitter card. Versioned filename so LinkedIn, X
+// and Slack re-scrape instead of serving a cached card; bump it whenever the
+// image changes. index.html repeats this URL (with width/height/alt) for
+// scrapers that don't run JS.
+export const SOBERANIA_OG_IMAGE_URL = `${SOBERANIA_PROTOCOL_URL}/og/soberania-protocol-og-v2.png`;
+
 export const FRONTERA_SYSTEMS_NAME = 'Frontera Systems';
 export const FRONTERA_SYSTEMS_URL = 'https://frontera-systems.com';
 
