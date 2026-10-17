@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { LogoRotating } from '../components/logo/LogoRotating';
 import { CONSTITUTIONAL_INDEX_ORGANIZATIONS } from './assuranceIndexData';
-import { SOBERANIA_PROTOCOL_URL } from './brand';
+import { SOBERANIA_OG_IMAGE_URL, SOBERANIA_PROTOCOL_URL } from './brand';
 import './assurance.css';
 
 const PAGE_URL = `${SOBERANIA_PROTOCOL_URL}/research`;
@@ -63,7 +63,7 @@ function usePageMeta() {
     );
     setMeta('og:url', PAGE_URL, true);
     setMeta('og:type', 'website', true);
-    setMeta('og:image', `${SOBERANIA_PROTOCOL_URL}/og-image.png`, true);
+    setMeta('og:image', SOBERANIA_OG_IMAGE_URL, true);
     setMeta('og:site_name', 'Soberanía Assurance', true);
 
     setMeta('twitter:card', 'summary_large_image');

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { LogoRotating } from '../components/logo/LogoRotating';
 import { CONSTITUTIONAL_INDEX_ORGANIZATIONS } from './assuranceIndexData';
-import { SOBERANIA_PROTOCOL_URL } from './brand';
+import { SOBERANIA_OG_IMAGE_URL, SOBERANIA_PROTOCOL_URL } from './brand';
 import './assurance.css';
 
 const QUADRANT_META = {
@@ -52,7 +52,7 @@ function useAssessmentMeta(orgName: string, slug: string) {
     setMeta('og:description', `Independent constitutional assessment of ${orgName} evaluating AI Governance and Sovereignty dimensions.`, true);
     setMeta('og:url', pageUrl, true);
     setMeta('og:type', 'article', true);
-    setMeta('og:image', `${SOBERANIA_PROTOCOL_URL}/og-image.png`, true);
+    setMeta('og:image', SOBERANIA_OG_IMAGE_URL, true);
     setMeta('og:site_name', 'Soberanía Assurance', true);
     setMeta('twitter:card', 'summary_large_image');
 

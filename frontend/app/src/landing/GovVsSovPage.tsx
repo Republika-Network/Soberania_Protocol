@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LogoRotating } from '../components/logo/LogoRotating';
-import { SOBERANIA_PROTOCOL_URL } from './brand';
+import { SOBERANIA_OG_IMAGE_URL, SOBERANIA_PROTOCOL_URL } from './brand';
 import './assurance.css';
 
 const PAGE_URL = `${SOBERANIA_PROTOCOL_URL}/ai-governance-vs-ai-sovereignty`;
@@ -51,7 +51,7 @@ function usePageMeta() {
     setMeta('og:description', 'Governance explains how AI is supervised. Sovereignty explains who truly controls the capability. Trust requires both.', true);
     setMeta('og:url', PAGE_URL, true);
     setMeta('og:type', 'article', true);
-    setMeta('og:image', `${SOBERANIA_PROTOCOL_URL}/og-image.png`, true);
+    setMeta('og:image', SOBERANIA_OG_IMAGE_URL, true);
     setMeta('og:site_name', 'Soberanía Assurance', true);
 
     setMeta('twitter:card', 'summary_large_image');
