@@ -348,24 +348,28 @@ describe('SOBE-SEC-01 N1 — round trips and hostile inputs', () => {
   });
 
   it('a capsule issuerId that answers differently on each read is captured once', async () => {
+    // Genuine Alice-signed manifest: only the first reading (Alice) can verify,
+    // so a second read (Mallory) anywhere in the capsule would turn the binding
+    // into a mismatch — and would show up in the read count regardless.
     let reads = 0;
     const input = {
       operation: 'verify-signed-manifest' as const,
-      signedManifest: signedManifest(ALICE, mallory),
+      signedManifest: signedManifest(ALICE, alice),
       get issuerId() {
         reads += 1;
-        return reads === 1 ? MALLORY : ALICE;
+        return reads === 1 ? ALICE : MALLORY;
       },
     };
     const result = await invokeSovereigntyCapability(
       buildSovereigntyCapabilityInvocation({ capability: VERIFIABILITY_REF, input }),
       createVerifiabilitySovereigntyCapabilityImplementation({ verificationKeyResolver: registry() }),
     );
-    if (result.status === 'succeeded' && result.output.operation === 'verify-signed-manifest') {
-      expect(result.output.verification.checks.issuerBinding).not.toBe('verified');
-      expect(result.output.verification.valid).toBe(false);
-    } else {
-      expect(result.status).toBe('failed');
+    expect(reads).toBe(1);
+    expect(result.status).toBe('succeeded');
+    if (result.status !== 'succeeded' || result.output.operation !== 'verify-signed-manifest') {
+      throw new Error('expected a manifest verification');
     }
+    expect(result.output.verification.checks.issuerBinding).toBe('verified');
+    expect(result.output.verification.valid).toBe(true);
   });
 });

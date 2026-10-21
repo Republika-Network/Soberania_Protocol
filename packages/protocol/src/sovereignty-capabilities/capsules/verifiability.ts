@@ -392,9 +392,9 @@ export function validateVerifiabilitySovereigntyCapabilityInput(
 
   const reasons: VerifiabilitySovereigntyCapabilityReasonCode[] = [];
 
-  // An optional issuer override must be a real id when it is present at all;
+  // An optional expected issuer must be a real id when it is present at all;
   // a blank or present-but-`undefined` one is a malformed request rather than
-  // an absent override, matching every other optional in this package.
+  // an absent expectation, matching every other optional in this package.
   if (
     (operation === 'verify-signed-manifest' || operation === 'verify-signed-claim')
     && hasOwn(value, 'issuerId')
@@ -549,8 +549,8 @@ function attributionView(value: unknown): unknown {
 }
 
 /**
- * The capability-specific input, captured once: the operation, the issuer
- * override, and the target. `input` is what the input floor validates; for the
+ * The capability-specific input, captured once: the operation, the expected
+ * issuer, and the target. `input` is what the input floor validates; for the
  * two signed operations `artifact` carries the same captured target.
  */
 function captureVerifiabilityInput(value: unknown): {

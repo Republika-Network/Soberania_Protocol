@@ -1141,7 +1141,7 @@ describe('SM-08 / AOC.VERIFIABILITY invocation validation and failure semantics'
     }
   });
 
-  it('a blank issuerId override is a malformed invocation', async () => {
+  it('a blank expected issuerId is a malformed invocation', async () => {
     const { signed } = signedManifestFixture();
     const result = await run({ operation: 'verify-signed-manifest', signedManifest: signed, issuerId: '  ' });
     expect(result.status).toBe('failed');
