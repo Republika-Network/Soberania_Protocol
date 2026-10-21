@@ -35,7 +35,14 @@ export interface VerifySovereignManifestOptions {
      * the Signed Claim").
      */
     readonly verificationKeyResolver?: VerificationKeyResolver;
-    /** Issuer id to resolve a verification key for, when `verificationKeyResolver` is supplied. Defaults to `manifest.registrant` if it is a string. */
+    /**
+     * Expected issuer id, used only when `verificationKeyResolver` is supplied.
+     * It narrows, never replaces, the issuer the signed manifest names: it must
+     * equal the registrant's id (a string registrant, or a
+     * `CanonicalPrincipalRef`'s `id`), otherwise `issuerBinding` is `unverified`
+     * with `ISSUER_BINDING_ISSUER_MISMATCH`. When omitted, a string registrant is
+     * resolved.
+     */
     readonly issuer?: string;
 }
 /**
@@ -107,7 +114,12 @@ export interface VerifySignedSovereignClaimOptions {
      * to the asserted issuer.
      */
     readonly verificationKeyResolver?: VerificationKeyResolver;
-    /** Issuer id to resolve a key for. Defaults to the claim's own `issuer`. */
+    /**
+     * Expected issuer id. It narrows, never replaces, the claim's own signed
+     * `issuer`: a different value makes `issuerBinding` `unverified` with
+     * `ISSUER_BINDING_ISSUER_MISMATCH`. When omitted, the claim's issuer is
+     * resolved.
+     */
     readonly issuer?: string;
 }
 /**

@@ -165,10 +165,12 @@ export type VerifiabilitySovereigntyCapabilityReasonCode = (typeof VERIFIABILITY
  * Deliberately no `contentBytes` field: see the Integrity boundary above.
  * Deliberately no private key field, in any spelling.
  *
- * `issuerId` overrides the issuer a binding check resolves against and is
- * relevant only when the implementation was constructed with a
- * `VerificationKeyResolver`. Without one it is simply unused — supplying it
- * never causes a binding to be reported as checked.
+ * `issuerId` is an expected issuer and is relevant only when the
+ * implementation was constructed with a `VerificationKeyResolver`. It narrows,
+ * never replaces, the issuer the signed manifest names: unless it equals the
+ * registrant's id, `issuerBinding` is `unverified` with
+ * `ISSUER_BINDING_ISSUER_MISMATCH`. Without a resolver it is simply unused —
+ * supplying it never causes a binding to be reported as checked.
  */
 export interface VerifySignedSovereignManifestInput {
     readonly operation: 'verify-signed-manifest';
@@ -187,6 +189,7 @@ export interface VerifySignedSovereignManifestInput {
 export interface VerifySignedSovereignClaimInput {
     readonly operation: 'verify-signed-claim';
     readonly signedClaim: SignedClaim<VerifiableSovereignClaim>;
+    /** Expected issuer; narrows, never replaces, the claim's signed `issuer` (see the manifest input). */
     readonly issuerId?: string;
 }
 /**

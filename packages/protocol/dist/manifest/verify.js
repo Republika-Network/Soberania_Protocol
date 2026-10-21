@@ -128,14 +128,21 @@ async function verifySovereignManifest(signed, options = {}) {
     }
     let issuerBinding = 'not_performed';
     if (options.verificationKeyResolver) {
-        const issuer = options.issuer ?? (typeof manifest?.registrant === 'string' ? manifest.registrant : undefined);
-        if (!issuer) {
+        // The signed registrant is the only issuer a binding can be about. Without
+        // an expectation only a string registrant is resolved (unchanged default).
+        const registrant = manifest ? (0, snapshot_1.readOnce)(manifest, 'registrant') : undefined;
+        const selection = selectBindingIssuer(canonicalIssuerId(registrant), typeof registrant === 'string' ? registrant : undefined, options.issuer);
+        if (selection.kind === 'mismatch') {
+            issuerBinding = 'unverified';
+            reasons.push('ISSUER_BINDING_UNVERIFIED', 'ISSUER_BINDING_ISSUER_MISMATCH');
+        }
+        else if (selection.kind === 'none') {
             issuerBinding = 'not_performed';
             reasons.push('ISSUER_BINDING_NOT_PERFORMED_NO_ISSUER');
         }
         else {
-            const descriptor = await options.verificationKeyResolver.resolveVerificationKey(issuer);
-            const binding = bindIssuerKey(proof, signature, issuer, descriptor);
+            const descriptor = await options.verificationKeyResolver.resolveVerificationKey(selection.issuer);
+            const binding = bindIssuerKey(proof, signature, selection.issuer, descriptor);
             issuerBinding = binding.outcome;
             reasons.push(...binding.reasons);
         }
@@ -172,6 +179,23 @@ function canonicalIssuerId(issuer) {
     if (isPlainObject(issuer) && isNonBlankString(issuer.id))
         return issuer.id;
     return undefined;
+}
+/**
+ * Chooses the issuer a binding check resolves (SOBE-SEC-01, N1). The issuer is
+ * always the one the signed artifact names: a caller's `expected` issuer can
+ * only narrow that, never replace it. An expectation that is not a non-blank
+ * string, or that differs from the signed issuer — including when the
+ * artifact names none — fails closed as a mismatch, without consulting the
+ * resolver. Without an expectation, `defaultIssuer` is resolved if present.
+ */
+function selectBindingIssuer(signedIssuer, defaultIssuer, expected) {
+    if (expected === undefined || expected === null) {
+        return defaultIssuer ? { kind: 'resolve', issuer: defaultIssuer } : { kind: 'none' };
+    }
+    if (!isNonBlankString(expected) || signedIssuer === undefined || expected !== signedIssuer) {
+        return { kind: 'mismatch' };
+    }
+    return { kind: 'resolve', issuer: signedIssuer };
 }
 function validateVerifiableSovereignClaim(claim) {
     if (!isPlainObject(claim)) {
@@ -253,14 +277,19 @@ async function verifySignedSovereignClaim(input, options = {}) {
     }
     let issuerBinding = 'not_performed';
     if (options.verificationKeyResolver) {
-        const issuer = options.issuer ?? canonicalIssuerId((0, snapshot_1.readOnce)(claimSnapshot ? claimSnapshot.value : rawClaim, 'issuer'));
-        if (!issuer) {
+        const signedIssuer = canonicalIssuerId((0, snapshot_1.readOnce)(claimSnapshot ? claimSnapshot.value : rawClaim, 'issuer'));
+        const selection = selectBindingIssuer(signedIssuer, signedIssuer, options.issuer);
+        if (selection.kind === 'mismatch') {
+            issuerBinding = 'unverified';
+            reasons.push('ISSUER_BINDING_UNVERIFIED', 'ISSUER_BINDING_ISSUER_MISMATCH');
+        }
+        else if (selection.kind === 'none') {
             issuerBinding = 'not_performed';
             reasons.push('ISSUER_BINDING_NOT_PERFORMED_NO_ISSUER');
         }
         else {
-            const descriptor = await options.verificationKeyResolver.resolveVerificationKey(issuer);
-            const binding = bindIssuerKey(proof, signature, issuer, descriptor);
+            const descriptor = await options.verificationKeyResolver.resolveVerificationKey(selection.issuer);
+            const binding = bindIssuerKey(proof, signature, selection.issuer, descriptor);
             issuerBinding = binding.outcome;
             reasons.push(...binding.reasons);
         }

@@ -126,7 +126,14 @@ export interface VerifySovereignManifestOptions {
    * the Signed Claim").
    */
   readonly verificationKeyResolver?: VerificationKeyResolver;
-  /** Issuer id to resolve a verification key for, when `verificationKeyResolver` is supplied. Defaults to `manifest.registrant` if it is a string. */
+  /**
+   * Expected issuer id, used only when `verificationKeyResolver` is supplied.
+   * It narrows, never replaces, the issuer the signed manifest names: it must
+   * equal the registrant's id (a string registrant, or a
+   * `CanonicalPrincipalRef`'s `id`), otherwise `issuerBinding` is `unverified`
+   * with `ISSUER_BINDING_ISSUER_MISMATCH`. When omitted, a string registrant is
+   * resolved.
+   */
   readonly issuer?: string;
 }
 
@@ -207,13 +214,23 @@ export async function verifySovereignManifest(
 
   let issuerBinding: BindingOutcome = 'not_performed';
   if (options.verificationKeyResolver) {
-    const issuer = options.issuer ?? (typeof manifest?.registrant === 'string' ? manifest.registrant : undefined);
-    if (!issuer) {
+    // The signed registrant is the only issuer a binding can be about. Without
+    // an expectation only a string registrant is resolved (unchanged default).
+    const registrant = manifest ? readOnce(manifest, 'registrant') : undefined;
+    const selection = selectBindingIssuer(
+      canonicalIssuerId(registrant),
+      typeof registrant === 'string' ? registrant : undefined,
+      options.issuer,
+    );
+    if (selection.kind === 'mismatch') {
+      issuerBinding = 'unverified';
+      reasons.push('ISSUER_BINDING_UNVERIFIED', 'ISSUER_BINDING_ISSUER_MISMATCH');
+    } else if (selection.kind === 'none') {
       issuerBinding = 'not_performed';
       reasons.push('ISSUER_BINDING_NOT_PERFORMED_NO_ISSUER');
     } else {
-      const descriptor = await options.verificationKeyResolver.resolveVerificationKey(issuer);
-      const binding = bindIssuerKey(proof, signature, issuer, descriptor);
+      const descriptor = await options.verificationKeyResolver.resolveVerificationKey(selection.issuer);
+      const binding = bindIssuerKey(proof, signature, selection.issuer, descriptor);
       issuerBinding = binding.outcome;
       reasons.push(...binding.reasons);
     }
@@ -296,7 +313,12 @@ export interface VerifySignedSovereignClaimOptions {
    * to the asserted issuer.
    */
   readonly verificationKeyResolver?: VerificationKeyResolver;
-  /** Issuer id to resolve a key for. Defaults to the claim's own `issuer`. */
+  /**
+   * Expected issuer id. It narrows, never replaces, the claim's own signed
+   * `issuer`: a different value makes `issuerBinding` `unverified` with
+   * `ISSUER_BINDING_ISSUER_MISMATCH`. When omitted, the claim's issuer is
+   * resolved.
+   */
   readonly issuer?: string;
 }
 
@@ -321,6 +343,33 @@ function canonicalIssuerId(issuer: unknown): string | undefined {
   if (isNonBlankString(issuer)) return issuer;
   if (isPlainObject(issuer) && isNonBlankString(issuer.id)) return issuer.id;
   return undefined;
+}
+
+type BindingIssuerSelection =
+  | { readonly kind: 'resolve'; readonly issuer: string }
+  | { readonly kind: 'none' }
+  | { readonly kind: 'mismatch' };
+
+/**
+ * Chooses the issuer a binding check resolves (SOBE-SEC-01, N1). The issuer is
+ * always the one the signed artifact names: a caller's `expected` issuer can
+ * only narrow that, never replace it. An expectation that is not a non-blank
+ * string, or that differs from the signed issuer — including when the
+ * artifact names none — fails closed as a mismatch, without consulting the
+ * resolver. Without an expectation, `defaultIssuer` is resolved if present.
+ */
+function selectBindingIssuer(
+  signedIssuer: string | undefined,
+  defaultIssuer: string | undefined,
+  expected: unknown,
+): BindingIssuerSelection {
+  if (expected === undefined || expected === null) {
+    return defaultIssuer ? { kind: 'resolve', issuer: defaultIssuer } : { kind: 'none' };
+  }
+  if (!isNonBlankString(expected) || signedIssuer === undefined || expected !== signedIssuer) {
+    return { kind: 'mismatch' };
+  }
+  return { kind: 'resolve', issuer: signedIssuer };
 }
 
 function validateVerifiableSovereignClaim(claim: unknown): ClaimValidationResult {
@@ -410,13 +459,17 @@ export async function verifySignedSovereignClaim(
 
   let issuerBinding: BindingOutcome = 'not_performed';
   if (options.verificationKeyResolver) {
-    const issuer = options.issuer ?? canonicalIssuerId(readOnce(claimSnapshot ? claimSnapshot.value : rawClaim, 'issuer'));
-    if (!issuer) {
+    const signedIssuer = canonicalIssuerId(readOnce(claimSnapshot ? claimSnapshot.value : rawClaim, 'issuer'));
+    const selection = selectBindingIssuer(signedIssuer, signedIssuer, options.issuer);
+    if (selection.kind === 'mismatch') {
+      issuerBinding = 'unverified';
+      reasons.push('ISSUER_BINDING_UNVERIFIED', 'ISSUER_BINDING_ISSUER_MISMATCH');
+    } else if (selection.kind === 'none') {
       issuerBinding = 'not_performed';
       reasons.push('ISSUER_BINDING_NOT_PERFORMED_NO_ISSUER');
     } else {
-      const descriptor = await options.verificationKeyResolver.resolveVerificationKey(issuer);
-      const binding = bindIssuerKey(proof, signature, issuer, descriptor);
+      const descriptor = await options.verificationKeyResolver.resolveVerificationKey(selection.issuer);
+      const binding = bindIssuerKey(proof, signature, selection.issuer, descriptor);
       issuerBinding = binding.outcome;
       reasons.push(...binding.reasons);
     }

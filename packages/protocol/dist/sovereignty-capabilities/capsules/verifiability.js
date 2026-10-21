@@ -298,8 +298,9 @@ function subjectsExactlyEqual(a, b) {
  * identifier participates — `displayName`, `source` and `metadata` are never
  * read and never treated as identity. `verifySovereignManifest`'s own default
  * covers only the string case; rather than widening that primitive's
- * semantics, the capsule resolves the id itself and passes it explicitly, so
- * the primitive is left exactly as it was. Returning `undefined` is what keeps
+ * semantics, the capsule resolves the id itself and passes it as the expected
+ * issuer, which the primitive accepts only because it equals the signed
+ * registrant's id. Returning `undefined` is what keeps
  * an unresolvable registrant honestly `not_performed` instead of guessed.
  */
 function registrantIssuerId(registrant) {
