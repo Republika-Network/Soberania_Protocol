@@ -1,4 +1,5 @@
 import type { AuditEventSink } from '../adapters';
+import { canonicalSnapshot, hasOwnOnce, readOnce } from '../canonical/snapshot';
 import {
   buildSovereignExternalReference,
   toSovereignSubjectRef,
@@ -115,6 +116,54 @@ function buildInvocationEvidence(
 }
 
 /**
+ * Captures the caller's invocation envelope exactly once (SOBE-SEC-01.2).
+ *
+ * The envelope is validated, handed to the implementation and turned into
+ * evidence; were each of those to read the caller's object afresh, a getter or
+ * proxy could show a validated subject to the implementation and a different
+ * one to the evidence. So every field is read once into a frozen copy, and
+ * nothing after this reads the caller's object. The subject is rebuilt from its
+ * canonical bytes and the capability ref from its two fields; `input` is
+ * carried by reference, because what it means is the implementation's business
+ * and the implementation captures it itself. Presence is preserved, so an
+ * ordinary envelope validates exactly as before; a subject that cannot be
+ * canonicalized becomes `null`, and an envelope that cannot be read at all
+ * becomes `null`, both of which preflight rejects.
+ */
+function captureInvocation(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return value;
+  }
+  // The outcome is assigned rather than returned from the `catch`, so an
+  // unreadable envelope is an explicit negative result that preflight rejects.
+  const envelope: Record<string, unknown> = {};
+  let readable = true;
+  try {
+    for (const key of ['schemaVersion', 'invocationId', 'requestedAt', 'correlationId'] as const) {
+      const field = readOnce(value, key);
+      if (field !== undefined || hasOwnOnce(value, key)) envelope[key] = field;
+    }
+    const capability = readOnce(value, 'capability');
+    envelope.capability =
+      typeof capability === 'object' && capability !== null && !Array.isArray(capability)
+        ? Object.freeze({ id: readOnce(capability, 'id'), version: readOnce(capability, 'version') })
+        : capability;
+    const subject = readOnce(value, 'subject');
+    if (subject !== undefined) {
+      envelope.subject = canonicalSnapshot(subject)?.value ?? null;
+    } else if (hasOwnOnce(value, 'subject')) {
+      envelope.subject = undefined;
+    }
+    if (hasOwnOnce(value, 'input')) {
+      envelope.input = readOnce(value, 'input');
+    }
+  } catch {
+    readable = false;
+  }
+  return readable ? Object.freeze(envelope) : null;
+}
+
+/**
  * Delivers evidence to an explicitly configured sink exactly once.
  *
  * Returns `undefined` on success, or the sink's failure. There is no retry:
@@ -222,34 +271,37 @@ export async function invokeSovereigntyCapability<TInput, TOutput>(
   options: InvokeSovereigntyCapabilityOptions = {},
 ): Promise<SovereigntyCapabilityResult<TOutput>> {
   const clock = options.clock ?? systemSovereigntyCapabilityClock;
+  // From here on only the capture is read: preflight, the implementation and
+  // the evidence all see the same envelope.
+  const envelope = captureInvocation(invocation) as SovereigntyCapabilityInvocation<TInput>;
 
   const rejectionReasons = preflightReasons(
-    invocation as SovereigntyCapabilityInvocation<unknown>,
+    envelope as SovereigntyCapabilityInvocation<unknown>,
     (implementation as { capability?: unknown } | null | undefined)?.capability,
   );
   if (rejectionReasons.length > 0) {
     throw new SovereigntyCapabilityInvocationError(SOVEREIGNTY_CAPABILITY_INVOCATION_ERROR_CODES.rejected, {
       reasonCodes: rejectionReasons,
-      ...(typeof invocation?.invocationId === 'string' ? { invocationId: invocation.invocationId } : {}),
-      ...(isValidSovereigntyCapabilityRef(invocation?.capability) ? { capability: invocation.capability } : {}),
+      ...(typeof envelope?.invocationId === 'string' ? { invocationId: envelope.invocationId } : {}),
+      ...(isValidSovereigntyCapabilityRef(envelope?.capability) ? { capability: envelope.capability } : {}),
     });
   }
 
   let outcome: SovereigntyCapabilityExecutionOutcome<TOutput>;
   try {
-    outcome = await implementation.invoke(invocation);
+    outcome = await implementation.invoke(envelope);
   } catch (error) {
-    throw await failWithImplementationFault(invocation, clock, options, REASON_IMPLEMENTATION_ERROR, error);
+    throw await failWithImplementationFault(envelope, clock, options, REASON_IMPLEMENTATION_ERROR, error);
   }
 
   if (!isValidSovereigntyCapabilityExecutionOutcome(outcome)) {
-    throw await failWithImplementationFault(invocation, clock, options, REASON_INVALID_OUTCOME, undefined);
+    throw await failWithImplementationFault(envelope, clock, options, REASON_INVALID_OUTCOME, undefined);
   }
 
   const completedAt = toUtcTimestamp(clock());
-  const subject = resolveSovereigntyCapabilitySubject(invocation, outcome);
+  const subject = resolveSovereigntyCapabilitySubject(envelope, outcome);
   const evidence = buildInvocationEvidence(
-    invocation as SovereigntyCapabilityInvocation<unknown>,
+    envelope as SovereigntyCapabilityInvocation<unknown>,
     completedAt,
     outcome.status,
     subject,
@@ -267,7 +319,7 @@ export async function invokeSovereigntyCapability<TInput, TOutput>(
       SOVEREIGNTY_CAPABILITY_INVOCATION_ERROR_CODES.evidenceDeliveryFailed,
       {
         reasonCodes: [REASON_EVIDENCE_DELIVERY_FAILED],
-        invocationId: invocation.invocationId,
+        invocationId: envelope.invocationId,
         capability: evidence.capability,
         evidenceDelivered: false,
       },
@@ -277,10 +329,10 @@ export async function invokeSovereigntyCapability<TInput, TOutput>(
 
   const base = {
     schemaVersion: SOVEREIGNTY_CAPABILITY_RESULT_SCHEMA_VERSION,
-    invocationId: invocation.invocationId,
+    invocationId: envelope.invocationId,
     capability: evidence.capability,
     completedAt,
-    ...(invocation.correlationId === undefined ? {} : { correlationId: invocation.correlationId }),
+    ...(envelope.correlationId === undefined ? {} : { correlationId: envelope.correlationId }),
     ...(evidence.subject === undefined ? {} : { subject: evidence.subject }),
     evidence,
   } as const;

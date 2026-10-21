@@ -1,6 +1,6 @@
 # @aoc/protocol Known Limitations
 
-Verified facts about what the release-candidate state does **not** include, as of 2026-08-25.
+Verified facts about what the release-candidate state does **not** include, as of 2026-10-20.
 Consumers and decision-makers should read this alongside
 [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md).
 
@@ -54,9 +54,21 @@ Consumers and decision-makers should read this alongside
     successor is a separate increment in each repository. Live Data Rail carries a fail-closed
     mitigation so it is not emitting colliding digests meanwhile, and **no assessment has been made
     of whether the other two are affected in practice**. See
-    [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md) §8–§9.
-13. **The successor is an internal tarball, not a release.** `0.2.0-rc.1` is not published, not
+    [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md) §8–§9. `0.2.0-rc.1` has
+    since been burned in turn (item 14); the current successor is `0.2.0-rc.2`.
+13. **The successor is an internal tarball, not a release.** `0.2.0-rc.2` is not published, not
     tagged, carries no GitHub Release, and is not stable `0.2.0`. It exists in the git-ignored
-    `dist-rc/` directory and is reproducible from commit `eec79cdd…`. Every limitation above about
+    `dist-rc/` directory and is reproducible from commit `9f495f3c…`. Unlike `0.2.0-rc.1`, it is
+    **not authorized for handover** to any downstream repository. Every limitation above about
     registry selection, `@aoc` scope control, release-owner designation and `private: true` is
     unchanged by it.
+14. **`@aoc/protocol@0.2.0-rc.1` is burned for security defect SOBE-SEC-01, and `0.2.0-rc.2` fixes
+    only that defect.** Manifest and claim verification in `0.2.0-rc.0` and `0.2.0-rc.1` could
+    report an issuer binding as verified without tying the signing key to the registered issuer
+    key. `0.2.0-rc.2` (`sha256:9f81f112…`) makes the binding cryptographic and adds
+    `deriveSovereignKeyId`; its verification is stricter, so inputs that previously verified can
+    now be rejected (see the `0.2.0-rc.2` entry in `packages/protocol/CHANGELOG.md`). No consumer
+    has been moved to it, and no assessment has been made here of whether any consumer relied on the
+    defective binding. **It does not make the authorization layer production-safe:** three further
+    findings from the same security review (P0-2, P0-3, R3-4a) remain open and are tracked
+    privately. See [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md) §10.

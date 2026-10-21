@@ -1,5 +1,6 @@
 import type { VerificationKeyResolver } from '../../adapters';
 import { canonicalizeJSON } from '../../canonical';
+import { canonicalSnapshot, hasOwnOnce, readOnce } from '../../canonical/snapshot';
 import {
   isValidSovereignSubjectRef,
   sovereignExternalReferencesEqual,
@@ -477,6 +478,144 @@ function registrantIssuerId(registrant: unknown): string | undefined {
 }
 
 /**
+ * A signed manifest or claim wrapper, captured once at the trust boundary
+ * (SOBE-SEC-01.2).
+ *
+ * The caller's wrapper may be a getter or a proxy that answers differently on
+ * every read, so the capsule never reads it again after this. `wrapper` is the
+ * frozen copy the input floor validates and the verifier is handed; `payload`
+ * is the manifest or claim inside it, rebuilt from its canonical bytes. The
+ * proof is carried as read: the capsule never reads its fields, and the
+ * verifier captures each of them once and checks signature and issuer binding
+ * against that one capture. The
+ * subject and issuer the capsule attributes are read off that same `payload`,
+ * so they are always the ones the verified bytes name: there is one
+ * representation, not one for the checks and another for the evidence.
+ *
+ * When the payload cannot be canonicalized nothing can verify, and `payload`
+ * is instead a frozen view of the fields that individually could be, kept
+ * only so a negative result can still be attributed.
+ */
+interface CapturedSignedArtifact {
+  readonly wrapper: unknown;
+  readonly payload: unknown;
+  readonly canonical: boolean;
+}
+
+function captureSignedArtifact(
+  value: unknown,
+  payloadKey: 'manifest' | 'claim',
+  digestKey: 'manifestDigest' | 'digest',
+): CapturedSignedArtifact {
+  if (!isPlainObject(value)) {
+    return { wrapper: null, payload: undefined, canonical: false };
+  }
+  const hasPayload = hasOwnOnce(value, payloadKey);
+  const rawPayload = hasPayload ? readOnce(value, payloadKey) : undefined;
+  const snapshot = hasPayload ? canonicalSnapshot(rawPayload) : undefined;
+  const payload = snapshot ? snapshot.value : attributionView(rawPayload);
+  const digest = readOnce(value, digestKey);
+  const proof = readOnce(value, 'proof');
+  return {
+    wrapper: Object.freeze({
+      ...(hasPayload ? { [payloadKey]: payload } : {}),
+      [digestKey]: typeof digest === 'string' ? digest : null,
+      proof,
+    }),
+    payload,
+    canonical: snapshot !== undefined,
+  };
+}
+
+/** The individually canonicalizable fields of a payload that is not canonicalizable as a whole. */
+function attributionView(value: unknown): unknown {
+  if (!isPlainObject(value)) {
+    return undefined;
+  }
+  try {
+    const view: Record<string, unknown> = {};
+    for (const key of Object.keys(value)) {
+      const field = canonicalSnapshot(readOnce(value, key));
+      if (field) view[key] = field.value;
+    }
+    return Object.freeze(view);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The capability-specific input, captured once: the operation, the issuer
+ * override, and the target. `input` is what the input floor validates; for the
+ * two signed operations `artifact` carries the same captured target.
+ */
+function captureVerifiabilityInput(value: unknown): {
+  readonly input: unknown;
+  readonly artifact?: CapturedSignedArtifact;
+} {
+  if (!isPlainObject(value)) {
+    return { input: null };
+  }
+  const operation = readOnce(value, 'operation');
+  const fields: Record<string, unknown> = { operation };
+  if (hasOwnOnce(value, 'issuerId')) {
+    fields.issuerId = readOnce(value, 'issuerId');
+  }
+  let artifact: CapturedSignedArtifact | undefined;
+  if (operation === 'verify-signed-manifest') {
+    artifact = captureSignedArtifact(readOnce(value, 'signedManifest'), 'manifest', 'manifestDigest');
+    fields.signedManifest = artifact.wrapper;
+  } else if (operation === 'verify-signed-claim') {
+    artifact = captureSignedArtifact(readOnce(value, 'signedClaim'), 'claim', 'digest');
+    fields.signedClaim = artifact.wrapper;
+  } else if (operation === 'verify-sovereign-proof') {
+    // The generic operation attributes nothing, and the one primitive it
+    // calls captures the proof and canonicalizes the payload once itself.
+    if (hasOwnOnce(value, 'payload')) {
+      fields.payload = readOnce(value, 'payload');
+    }
+    fields.proof = readOnce(value, 'proof');
+  }
+  return { input: Object.freeze(fields), ...(artifact === undefined ? {} : { artifact }) };
+}
+
+/**
+ * The invocation's subject, read once and rebuilt as frozen data. `null` when
+ * one is present but is not a valid subject reference.
+ */
+function captureInvocationSubject(invocation: unknown): SovereignSubjectRef | undefined | null {
+  const subject = readOnce(invocation, 'subject');
+  if (subject === undefined) {
+    return undefined;
+  }
+  const snapshot = canonicalSnapshot(subject);
+  return snapshot && isValidSovereignSubjectRef(snapshot.value) ? snapshot.value : null;
+}
+
+/**
+ * The subject a claim verification is attributed to.
+ *
+ * On a match with the invocation's subject, that subject — external reference
+ * included — is kept, as SM-03 precedence always kept it; it is returned
+ * explicitly, from the capture it was compared in, so the common layer never
+ * has to read the caller's invocation again to find it. Otherwise it is the
+ * minimal subject a claim can attribute: its own `SovereignAssetId`, and only
+ * when that id is genuinely valid. A claim whose subject is malformed yields no
+ * subject at all — Protocol does not mint one to fill the gap.
+ */
+function claimSubjectAttribution(
+  invocationSubject: SovereignSubjectRef | undefined,
+  claimSubject: unknown,
+): { readonly subject?: SovereignSubjectRef } {
+  if (invocationSubject !== undefined) {
+    return { subject: invocationSubject };
+  }
+  return isValidSovereignSubjectRef({ sovereignAssetId: claimSubject })
+    ? { subject: { sovereignAssetId: claimSubject as SovereignSubjectRef['sovereignAssetId'] } }
+    : {};
+}
+
+/**
  * A one-shot guard around an injected resolver.
  *
  * Two jobs. First, it records that the resolver threw, so a *dependency fault*
@@ -541,16 +680,25 @@ export function createVerifiabilitySovereigntyCapabilityImplementation(
     ): Promise<SovereigntyCapabilityExecutionOutcome<VerifiabilitySovereigntyCapabilityOutput>> {
       const codes = VERIFIABILITY_SOVEREIGNTY_CAPABILITY_REASON_CODES;
 
-      const validation = validateVerifiabilitySovereigntyCapabilityInput(invocation.input);
+      // Everything below works from one capture of the caller's input and
+      // subject (SOBE-SEC-01.2). The invocation is never read again, so the
+      // subject and issuer attributed are the ones the verified bytes name.
+      const captured = captureVerifiabilityInput(readOnce(invocation, 'input'));
+      const validation = validateVerifiabilitySovereigntyCapabilityInput(captured.input);
       if (!validation.valid) {
         return { status: 'failed', reasonCodes: validation.reasons };
       }
+      const invocationSubject = captureInvocationSubject(invocation);
+      if (invocationSubject === null) {
+        return { status: 'failed', reasonCodes: [codes.invalidInput] };
+      }
 
-      const input = invocation.input;
+      const input = captured.input as VerifiabilitySovereigntyCapabilityInput;
+      const artifact = captured.artifact as CapturedSignedArtifact;
 
       if (input.operation === 'verify-signed-manifest') {
-        const { signedManifest } = input;
-        const manifest = signedManifest.manifest;
+        const signedManifest = artifact.wrapper as SignedSovereignManifest;
+        const manifest = artifact.payload as SignedSovereignManifest['manifest'];
 
         // The subject the *artifact* names. Read off the manifest, never
         // minted, and never fabricated when the manifest carries an invalid
@@ -564,8 +712,8 @@ export function createVerifiabilitySovereigntyCapabilityImplementation(
         // this is. It is checked for exact equality and never reconciled:
         // verifying one artifact under evidence attributed to another subject
         // is precisely the confusion this rejects.
-        if (invocation.subject !== undefined) {
-          if (artifactSubject === undefined || !subjectsExactlyEqual(invocation.subject, artifactSubject)) {
+        if (invocationSubject !== undefined) {
+          if (artifactSubject === undefined || !subjectsExactlyEqual(invocationSubject, artifactSubject)) {
             return { status: 'failed', reasonCodes: [codes.subjectMismatch] };
           }
         }
@@ -575,7 +723,7 @@ export function createVerifiabilitySovereigntyCapabilityImplementation(
         // cryptographic checks fail closed and the structural verdict still
         // comes from the real validator, so the report stays informative
         // rather than the canonicalizer throwing out of a verification call.
-        if (!isCanonicalizable(manifest)) {
+        if (!artifact.canonical) {
           const verification: SovereignManifestVerificationResult = {
             valid: false,
             checks: {
@@ -595,11 +743,12 @@ export function createVerifiabilitySovereigntyCapabilityImplementation(
         }
 
         const guard = verificationKeyResolver === undefined ? undefined : guardResolver(verificationKeyResolver);
-        const issuer = input.issuerId ?? registrantIssuerId(manifest.registrant);
+        const issuer = input.issuerId ?? registrantIssuerId(readOnce(manifest, 'registrant'));
 
         // Deliberately called WITHOUT `contentBytes`: the resulting
         // `contentDigest: 'not_performed'` is the mineral boundary, reported
-        // rather than hidden.
+        // rather than hidden. The verifier is handed the captured wrapper, so
+        // it checks exactly the bytes the subject and issuer were read from.
         const verification = await verifySovereignManifest(signedManifest, {
           ...(guard === undefined ? {} : { verificationKeyResolver: guard.guarded }),
           ...(issuer === undefined ? {} : { issuer }),
@@ -629,19 +778,39 @@ export function createVerifiabilitySovereigntyCapabilityImplementation(
       }
 
       if (input.operation === 'verify-signed-claim') {
-        const { signedClaim } = input;
-        const claim = signedClaim.claim as { subject?: unknown; issuer?: unknown } | undefined;
-        const claimSubject = claim?.subject;
+        const signedClaim = artifact.wrapper as SignedClaim<VerifiableSovereignClaim>;
+        const claimSubject = readOnce(artifact.payload, 'subject');
 
         // A claim carries sovereign identity, not the subject's current
         // external reference. So the match rule is sovereign-identity equality
         // only, and on a match the invocation's own subject — external
         // reference included — is what the common layer keeps, by SM-03
         // precedence. Nothing fabricates an external reference from a claim.
-        if (invocation.subject !== undefined) {
-          if (invocation.subject.sovereignAssetId !== claimSubject) {
+        if (invocationSubject !== undefined) {
+          if (invocationSubject.sovereignAssetId !== claimSubject) {
             return { status: 'failed', reasonCodes: [codes.subjectMismatch] };
           }
+        }
+
+        // Like a manifest, a claim that cannot be canonicalized cannot match
+        // any digest or signature, so both fail closed without calling the
+        // verifier on a value that was never captured whole.
+        if (!artifact.canonical) {
+          const verification: SovereignClaimVerificationResult = {
+            valid: false,
+            checks: {
+              claimStructure: 'invalid',
+              claimDigest: 'invalid',
+              signature: 'invalid',
+              issuerBinding: 'not_performed',
+            },
+            reasons: [codes.payloadNotCanonicalizable],
+          };
+          return {
+            status: 'succeeded',
+            output: Object.freeze({ operation: 'verify-signed-claim' as const, verification }),
+            ...claimSubjectAttribution(invocationSubject, claimSubject),
+          };
         }
 
         const guard = verificationKeyResolver === undefined ? undefined : guardResolver(verificationKeyResolver);
@@ -655,19 +824,10 @@ export function createVerifiabilitySovereigntyCapabilityImplementation(
           return { status: 'failed', reasonCodes: [codes.keyResolutionFailed] };
         }
 
-        // The minimal subject a claim can attribute: its own
-        // `SovereignAssetId`, and only when that id is genuinely valid. A claim
-        // whose subject is malformed yields no subject at all — Protocol does
-        // not mint one to fill the gap.
-        const artifactSubject: SovereignSubjectRef | undefined =
-          invocation.subject === undefined && isValidSovereignSubjectRef({ sovereignAssetId: claimSubject })
-            ? { sovereignAssetId: claimSubject as SovereignSubjectRef['sovereignAssetId'] }
-            : undefined;
-
         return {
           status: 'succeeded',
           output: Object.freeze({ operation: 'verify-signed-claim' as const, verification }),
-          ...(artifactSubject === undefined ? {} : { subject: artifactSubject }),
+          ...claimSubjectAttribution(invocationSubject, claimSubject),
         };
       }
 

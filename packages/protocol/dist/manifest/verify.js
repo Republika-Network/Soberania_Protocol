@@ -2,12 +2,66 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifySovereignManifest = verifySovereignManifest;
 exports.verifySignedSovereignClaim = verifySignedSovereignClaim;
-const canonical_1 = require("../canonical");
+const snapshot_1 = require("../canonical/snapshot");
 const claim_enums_1 = require("../claims/claim-enums");
 const content_identity_1 = require("../identity/content-identity");
 const proof_1 = require("./proof");
 const claims_1 = require("./claims");
 const manifest_1 = require("./manifest");
+/**
+ * Decides whether a resolved key descriptor authorizes the key that actually
+ * produced `proof`. Every rule is a necessary condition; the first one that
+ * fails makes the binding `unverified` (fail closed). A `keyId` string match
+ * alone never suffices: the proof's `keyId` must be derived from the very
+ * `publicKey` the signature was verified with, so a signer cannot borrow a
+ * registered issuer's `keyId` for their own key.
+ *
+ * Not evaluated (unchanged v1 limitations): `validFrom`/`validUntil` — the
+ * only time available is the signer-asserted, unsigned `proof.signedAt` — and
+ * the opaque `publicKeyRef`.
+ */
+function bindIssuerKey(proof, signature, issuer, descriptor) {
+    const unverified = (reason) => ({
+        outcome: 'unverified',
+        reasons: reason ? ['ISSUER_BINDING_UNVERIFIED', reason] : ['ISSUER_BINDING_UNVERIFIED'],
+    });
+    // Descriptor fields are read once, like the proof's.
+    const descriptorKeyId = (0, snapshot_1.readOnce)(descriptor, 'keyId');
+    const descriptorIssuer = (0, snapshot_1.readOnce)(descriptor, 'issuer');
+    const descriptorAlgorithm = (0, snapshot_1.readOnce)(descriptor, 'algorithm');
+    const descriptorJwk = (0, snapshot_1.readOnce)(descriptor, 'publicKeyJwk');
+    if (!isPlainObject(descriptor) || !isNonBlankString(descriptorKeyId)) {
+        return unverified();
+    }
+    // A key that did not produce a valid signature is bound to nothing. The
+    // signature was checked against this same snapshot, so `proof` below is
+    // exactly the key material that signed.
+    if (signature !== 'valid' || !proof) {
+        return unverified('ISSUER_BINDING_SIGNATURE_INVALID');
+    }
+    if (descriptorIssuer !== issuer) {
+        return unverified('ISSUER_BINDING_ISSUER_MISMATCH');
+    }
+    if (descriptorAlgorithm !== undefined && (typeof descriptorAlgorithm !== 'string' || descriptorAlgorithm.toLowerCase() !== 'ed25519')) {
+        return unverified('ISSUER_BINDING_ALGORITHM_UNSUPPORTED');
+    }
+    if (proof.keyId !== (0, proof_1.deriveSovereignKeyId)(proof.publicKey)) {
+        return unverified('ISSUER_BINDING_KEY_ID_NOT_DERIVED');
+    }
+    if (descriptorKeyId !== proof.keyId) {
+        return unverified('ISSUER_BINDING_KEY_ID_MISMATCH');
+    }
+    if (descriptorJwk !== undefined) {
+        const comparison = (0, proof_1.compareSovereignPublicKeyToJwk)(proof.publicKey, descriptorJwk);
+        if (comparison === 'unsupported') {
+            return unverified('ISSUER_BINDING_JWK_UNSUPPORTED');
+        }
+        if (comparison === 'mismatch') {
+            return unverified('ISSUER_BINDING_KEY_MISMATCH');
+        }
+    }
+    return { outcome: 'verified', reasons: [] };
+}
 /**
  * Independently verifies a `SignedSovereignManifest`. Never returns a bare
  * `true`/`false` — every attempted check is reported individually, and a
@@ -20,22 +74,35 @@ const manifest_1 = require("./manifest");
  */
 async function verifySovereignManifest(signed, options = {}) {
     const reasons = [];
-    const structuralValidation = (0, manifest_1.validateSovereignManifestV1)(signed.manifest);
+    // Snapshot every input once (SOBE-SEC-01.1). From here on, nothing reads
+    // `signed` again: the canonical bytes that are digested and signed are the
+    // same bytes every other check inspects, and the proof key that verified
+    // the signature is the same key issuer binding evaluates.
+    const manifestSnapshot = (0, snapshot_1.canonicalSnapshot)((0, snapshot_1.readOnce)(signed, 'manifest'));
+    const claimedManifestDigest = (0, snapshot_1.readOnce)(signed, 'manifestDigest');
+    const proof = (0, proof_1.snapshotSovereignProof)((0, snapshot_1.readOnce)(signed, 'proof'));
+    const manifest = manifestSnapshot && isPlainObject(manifestSnapshot.value)
+        ? manifestSnapshot.value
+        : undefined;
+    const structuralValidation = !manifestSnapshot
+        ? { valid: false, reasons: ['MANIFEST_NOT_CANONICALIZABLE'] }
+        : manifest
+            ? (0, manifest_1.validateSovereignManifestV1)(manifest)
+            : { valid: false, reasons: ['INVALID_MANIFEST_STRUCTURE'] };
     const manifestStructure = structuralValidation.valid ? 'valid' : 'invalid';
     if (!structuralValidation.valid) {
         reasons.push(...structuralValidation.reasons);
     }
-    const recomputedDigest = (0, manifest_1.computeManifestDigest)(signed.manifest);
-    const manifestDigest = recomputedDigest === signed.manifestDigest ? 'valid' : 'invalid';
+    const manifestDigest = manifestSnapshot && (0, proof_1.digestCanonicalBytes)(manifestSnapshot.canonical) === claimedManifestDigest ? 'valid' : 'invalid';
     if (manifestDigest === 'invalid') {
         reasons.push('MANIFEST_DIGEST_MISMATCH');
     }
-    const signatureValid = (0, proof_1.verifySovereignSignature)(signed.manifest, signed.proof);
+    const signatureValid = Boolean(manifestSnapshot && proof && (0, proof_1.verifySovereignSignatureOverCanonical)(manifestSnapshot.canonical, proof));
     const signature = signatureValid ? 'valid' : 'invalid';
     if (!signatureValid) {
         reasons.push('SIGNATURE_INVALID');
     }
-    if (signed.proof.payloadHash !== signed.manifestDigest) {
+    if (!proof || proof.payloadHash !== claimedManifestDigest) {
         reasons.push('PROOF_PAYLOAD_HASH_MISMATCH');
     }
     // Content verification is performed only when there is both something to
@@ -48,7 +115,7 @@ async function verifySovereignManifest(signed, options = {}) {
     // nobody ever signed. Both honest gaps are reported as `not_performed`,
     // never as `valid` and never as `invalid`.
     let contentDigest = 'not_performed';
-    const declaredContentIdentity = signed.manifest.contentIdentity;
+    const declaredContentIdentity = manifest?.contentIdentity;
     if (options.contentBytes && declaredContentIdentity) {
         const contentCheck = (0, content_identity_1.verifyContentIdentity)(options.contentBytes, declaredContentIdentity);
         contentDigest = contentCheck.valid ? 'valid' : 'invalid';
@@ -61,20 +128,16 @@ async function verifySovereignManifest(signed, options = {}) {
     }
     let issuerBinding = 'not_performed';
     if (options.verificationKeyResolver) {
-        const issuer = options.issuer ?? (typeof signed.manifest.registrant === 'string' ? signed.manifest.registrant : undefined);
+        const issuer = options.issuer ?? (typeof manifest?.registrant === 'string' ? manifest.registrant : undefined);
         if (!issuer) {
             issuerBinding = 'not_performed';
             reasons.push('ISSUER_BINDING_NOT_PERFORMED_NO_ISSUER');
         }
         else {
             const descriptor = await options.verificationKeyResolver.resolveVerificationKey(issuer);
-            if (descriptor && descriptor.keyId === signed.proof.keyId) {
-                issuerBinding = 'verified';
-            }
-            else {
-                issuerBinding = 'unverified';
-                reasons.push('ISSUER_BINDING_UNVERIFIED');
-            }
+            const binding = bindIssuerKey(proof, signature, issuer, descriptor);
+            issuerBinding = binding.outcome;
+            reasons.push(...binding.reasons);
         }
     }
     const valid = manifestStructure === 'valid' &&
@@ -110,27 +173,6 @@ function canonicalIssuerId(issuer) {
         return issuer.id;
     return undefined;
 }
-/**
- * Whether a value can be serialized under `aoc-canonical-json/1` at all.
- *
- * Uses the one authoritative canonicalizer rather than reimplementing its
- * rules; the thrown error is discarded rather than surfaced, so no raw
- * exception text or stack reaches a verification result.
- */
-function isCanonicalizable(value) {
-    // The outcome is assigned rather than returned out of the `catch`, so the
-    // failing branch is an explicit negative result rather than a swallowed
-    // error. The thrown value itself is deliberately discarded: no raw exception
-    // text, message or stack ever reaches a verification result or evidence.
-    let canonicalizable = true;
-    try {
-        (0, canonical_1.canonicalizeJSON)(value);
-    }
-    catch {
-        canonicalizable = false;
-    }
-    return canonicalizable;
-}
 function validateVerifiableSovereignClaim(claim) {
     if (!isPlainObject(claim)) {
         return { valid: false, reasons: ['INVALID_CLAIM_STRUCTURE'] };
@@ -153,11 +195,11 @@ function validateVerifiableSovereignClaim(claim) {
  * Independently verifies a `SignedClaim`, reporting each dimension separately.
  *
  * Additive companion to `verifySovereignManifest`, with the same shape and the
- * same honesty rules. The cryptographic work is **not** reimplemented here:
- * `verifySignedClaim` remains the owning primitive for the claim digest and
- * the Ed25519 signature, and its existing reason codes
- * (`CLAIM_DIGEST_MISMATCH`, `CLAIM_SIGNATURE_INVALID`) are preserved verbatim
- * and mapped onto explicit check outcomes. What this adds on top is the two
+ * same honesty rules. The claim digest and Ed25519 signature are checked with
+ * exactly `verifySignedClaim`'s rules and reason codes
+ * (`CLAIM_DIGEST_MISMATCH`, `CLAIM_SIGNATURE_INVALID`), mapped onto explicit
+ * check outcomes, but over one snapshot of the input shared with the
+ * structure and issuer checks (SOBE-SEC-01.1). What this adds on top is the two
  * things a bare digest/signature check cannot answer on its own: whether the
  * signed artifact is a structurally valid canonical sovereign claim, and
  * whether the signing key binds to the asserted issuer.
@@ -171,16 +213,29 @@ function validateVerifiableSovereignClaim(claim) {
  * uncontested. A cryptographically valid claim can be `Contested`, and this
  * function neither reads nor writes claim standing.
  */
-async function verifySignedSovereignClaim(signed, options = {}) {
+async function verifySignedSovereignClaim(input, options = {}) {
     const reasons = [];
-    const structuralValidation = validateVerifiableSovereignClaim(signed.claim);
+    // Snapshot every input once (SOBE-SEC-01.1); see `verifySovereignManifest`.
+    const rawClaim = (0, snapshot_1.readOnce)(input, 'claim');
+    const claimSnapshot = (0, snapshot_1.canonicalSnapshot)(rawClaim);
+    const claimedDigest = (0, snapshot_1.readOnce)(input, 'digest');
+    const proof = (0, proof_1.snapshotSovereignProof)((0, snapshot_1.readOnce)(input, 'proof'));
+    // A claim that cannot be canonicalized fails both cryptographic checks
+    // below whatever its structure, so only its reason codes come from the
+    // caller's object; every check that can pass reads the snapshot.
+    const structuralValidation = validateVerifiableSovereignClaim(claimSnapshot ? claimSnapshot.value : rawClaim);
     const claimStructure = structuralValidation.valid ? 'valid' : 'invalid';
     if (!structuralValidation.valid) {
         reasons.push(...structuralValidation.reasons);
     }
     let claimDigest;
     let signature;
-    if (isCanonicalizable(signed.claim)) {
+    if (claimSnapshot) {
+        // `verifySignedClaim` stays the owning primitive for the digest and the
+        // signature; it is handed the snapshot, never the caller's object. The
+        // snapshot is plain frozen data rebuilt from its canonical bytes, so
+        // canonicalizing it again reproduces exactly those bytes.
+        const signed = { claim: claimSnapshot.value, digest: claimedDigest, proof };
         const cryptographic = (0, claims_1.verifySignedClaim)(signed);
         reasons.push(...cryptographic.reasons);
         claimDigest = cryptographic.reasons.includes('CLAIM_DIGEST_MISMATCH') ? 'invalid' : 'valid';
@@ -198,20 +253,16 @@ async function verifySignedSovereignClaim(signed, options = {}) {
     }
     let issuerBinding = 'not_performed';
     if (options.verificationKeyResolver) {
-        const issuer = options.issuer ?? canonicalIssuerId(signed.claim?.issuer);
+        const issuer = options.issuer ?? canonicalIssuerId((0, snapshot_1.readOnce)(claimSnapshot ? claimSnapshot.value : rawClaim, 'issuer'));
         if (!issuer) {
             issuerBinding = 'not_performed';
             reasons.push('ISSUER_BINDING_NOT_PERFORMED_NO_ISSUER');
         }
         else {
             const descriptor = await options.verificationKeyResolver.resolveVerificationKey(issuer);
-            if (descriptor && descriptor.keyId === signed.proof.keyId) {
-                issuerBinding = 'verified';
-            }
-            else {
-                issuerBinding = 'unverified';
-                reasons.push('ISSUER_BINDING_UNVERIFIED');
-            }
+            const binding = bindIssuerKey(proof, signature, issuer, descriptor);
+            issuerBinding = binding.outcome;
+            reasons.push(...binding.reasons);
         }
     }
     const valid = claimStructure === 'valid'

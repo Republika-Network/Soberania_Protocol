@@ -22,7 +22,14 @@ declare module 'node:crypto' {
   export function randomUUID(): string;
   export function generateKeyPairSync(type: string): { publicKey: any; privateKey: any };
   export function sign(algorithm: unknown, data: Uint8Array, key: string): Uint8Array & { toString(encoding?: string): string };
-  export function verify(algorithm: unknown, data: Uint8Array, key: string, signature: Uint8Array): boolean;
+  export function verify(algorithm: unknown, data: Uint8Array, key: string | KeyObject, signature: Uint8Array): boolean;
+  export interface KeyObject {
+    readonly type: string;
+    readonly asymmetricKeyType?: string;
+    export(options: { type: 'spki'; format: 'pem' }): string;
+    export(options: { type: 'spki'; format: 'der' }): Uint8Array & { equals(other: Uint8Array): boolean };
+  }
+  export function createPublicKey(key: string | { key: Record<string, unknown>; format: 'jwk' }): KeyObject;
 }
 declare const Buffer: {
   from(data: string, encoding?: string): Uint8Array & { toString(encoding?: string): string };

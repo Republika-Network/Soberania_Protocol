@@ -114,11 +114,11 @@ export interface VerifySignedSovereignClaimOptions {
  * Independently verifies a `SignedClaim`, reporting each dimension separately.
  *
  * Additive companion to `verifySovereignManifest`, with the same shape and the
- * same honesty rules. The cryptographic work is **not** reimplemented here:
- * `verifySignedClaim` remains the owning primitive for the claim digest and
- * the Ed25519 signature, and its existing reason codes
- * (`CLAIM_DIGEST_MISMATCH`, `CLAIM_SIGNATURE_INVALID`) are preserved verbatim
- * and mapped onto explicit check outcomes. What this adds on top is the two
+ * same honesty rules. The claim digest and Ed25519 signature are checked with
+ * exactly `verifySignedClaim`'s rules and reason codes
+ * (`CLAIM_DIGEST_MISMATCH`, `CLAIM_SIGNATURE_INVALID`), mapped onto explicit
+ * check outcomes, but over one snapshot of the input shared with the
+ * structure and issuer checks (SOBE-SEC-01.1). What this adds on top is the two
  * things a bare digest/signature check cannot answer on its own: whether the
  * signed artifact is a structurally valid canonical sovereign claim, and
  * whether the signing key binds to the asserted issuer.
@@ -132,5 +132,5 @@ export interface VerifySignedSovereignClaimOptions {
  * uncontested. A cryptographically valid claim can be `Contested`, and this
  * function neither reads nor writes claim standing.
  */
-export declare function verifySignedSovereignClaim(signed: SignedClaim, options?: VerifySignedSovereignClaimOptions): Promise<SovereignClaimVerificationResult>;
+export declare function verifySignedSovereignClaim(input: SignedClaim, options?: VerifySignedSovereignClaimOptions): Promise<SovereignClaimVerificationResult>;
 //# sourceMappingURL=verify.d.ts.map

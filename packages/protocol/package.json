@@ -1,6 +1,6 @@
 {
   "name": "@aoc/protocol",
-  "version": "0.2.0-rc.1",
+  "version": "0.2.0-rc.2",
   "private": true,
   "description": "Public contracts, semantics, schemas, and compatibility definitions for Soberanía Protocol.",
   "license": "Apache-2.0",

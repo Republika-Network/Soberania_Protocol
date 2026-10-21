@@ -498,3 +498,81 @@ claiming it has happened.
 Live Data Rail additionally carries a fail-closed downstream mitigation for UG-003, so it is not
 emitting colliding digests while still pinned. **Whether Frontera or PMFreak are exposed in practice
 has not been audited by this repository, and no claim is made about them.**
+
+## 10. SOBE-SEC-01F — candidate `0.2.0-rc.2` cut; `0.2.0-rc.1` burned (2026-10-20)
+
+**Founder authorization on record:** see [`RELEASE_AUTHORITY.md`](RELEASE_AUTHORITY.md),
+"Candidate authorizations on record". In short: the internal candidate identity
+`@aoc/protocol@0.2.0-rc.2`, prerelease family `rc` (unchanged), internal checksum-pinned tarball
+only; the additive public symbol `deriveSovereignKeyId`; the five dependent bumps; the integration
+contract's metadata-only move to `1.0.2`; and successor-specific release evidence.
+
+**Not authorized, and not done:** npm or any registry publication, dist-tag creation or movement,
+`npm publish`, `private: false`, git tag creation, GitHub Release, a security advisory, deployment,
+stable `0.2.0`, General Availability, handover of the artifact to any downstream repository, or
+repinning any consumer. `private: true` still holds. Unlike §9, **no internal handover is
+authorized.**
+
+### The burned → replacement chain
+
+| | |
+| --- | --- |
+| **BURNED** | `@aoc/protocol@0.2.0-rc.1`, `sha256:b0d6ee6ff2010c4addab0bd683e2a89b9b2246f430c7e892fdc3d4123f3a3f60` |
+| **WHY** | Security defect SOBE-SEC-01: manifest and claim verification could report an issuer binding as verified without cryptographically tying the signing key to the registered issuer key. `0.2.0-rc.0` carries the same defect. |
+| **REPLACED BY** | `@aoc/protocol@0.2.0-rc.2`, `sha256:9f81f112a7c391dc781cb831e01a645e9330408d5e67d27df118887de58c4104` |
+| **STATUS** | Internal RC candidate for validation. **Not published, not handed over, not stable, not GA.** |
+
+`0.2.0-rc.1` is burned permanently and its number is never reused. Its release manifest, SBOM,
+consumer lock and artifact record are **retained unmodified**; so are all four `0.2.0-rc.0` files.
+Every pre-existing file under `docs/release/evidence/` hashes identically before and after this
+increment.
+
+### What changed in the package
+
+The fix is commit `2402b3a` (SOBE-SEC-01, with SOBE-SEC-01.1 and SOBE-SEC-01.2): issuer binding is
+now cryptographic, verification works from a single snapshot of its input, and `AOC.VERIFIABILITY`
+attributes evidence from the same capture it verifies. The changelog entry for `0.2.0-rc.2` in
+`packages/protocol/CHANGELOG.md` lists the compatibility consequences; verification is stricter, so
+inputs that previously verified can now be rejected.
+
+The public **symbol** surface grew by one: `deriveSovereignKeyId` in `@aoc/protocol/manifest`
+(runtime symbols 259 → 260, digest `5df05c3a…`). Under `docs/protocol/PUBLIC_API.md` that is
+additive, so the security changeset is classified `minor` and the symbol table lists it. The
+public **export map** did not move: `a67d65b1…`, 15 keys, identical to rc.0 and rc.1.
+
+### The successor identity was derived, not chosen
+
+`changeset version` in pre mode (tag `rc`) computed `0.2.0-rc.2`; the result is the same whether
+the changeset is `patch` or `minor`, because the `0.2.0` base already derives from earlier minor
+changesets. Five packages moved with it — `@aoc/asset-protocolization`, `@aoc/audit-sdk`,
+`@aoc/capability-tokens`, `@aoc/consent-engine`, `@aoc/scoped-access`, all `0.1.1-rc.1` →
+`0.1.1-rc.2` — because each pins `@aoc/protocol` exactly. Nothing else changed version.
+
+### Integration contract: `1.0.1` → `1.0.2`
+
+Only `protocol.version`, `distribution.candidateIdentity`, `distribution.candidateIdentityDerivedBy`
+and `distribution.artifactName` moved, plus the metadata record: `lastMetadataUpdate` now records
+`0.2.0-rc.1` as burned, and the previous `1.0.1` record — which carries burned `0.2.0-rc.0` — moved
+verbatim into a new `previousMetadataUpdates` array instead of being overwritten. Every other field
+is unchanged. That is `editorialOrMetadataOnly`: patch Changeset, patch
+`contractVersion`. Consumers verifying the shipped contract must now expect `1.0.2`.
+
+### Clean source → artifact chain
+
+The candidate source was committed first (`9f495f3c195f140afcb8dabda236aebda42fbf7d`, clean tree),
+and only then packed and evidenced; the manifest records `protocolWorkspaceClean: true`. The
+artifact is 287,895 bytes and 410 files; the three files beyond rc.1's 407 are the new internal
+`dist/canonical/snapshot.*`, which is not an export. Packing was done in a POSIX clone, every tar
+entry is `0644`, and a fresh clone of `9f495f3c…`, packed without building, reproduces the same
+SHA-256. The packed tarball was installed into a clean room: `deriveSovereignKeyId` reproduces the
+key id `generateSovereignKeyPair` assigns, the shipped contract reads by path as
+`aoc.cross-repository-integration@1.0.2` binding `0.2.0-rc.2` with both burned candidates on
+record, and the contract file and `dist/` deep paths do not resolve as module specifiers.
+
+### What `0.2.0-rc.2` does not establish
+
+It closes SOBE-SEC-01 only. Three further findings from the same security review (P0-2, P0-3,
+R3-4a) remain open and are tracked privately; the authorization layer is **not** production-safe as
+a whole. No consumer has been moved to `0.2.0-rc.2`: per §9, Live Data Rail, Frontera and PMFreak
+were last recorded as pinned to the burned `0.2.0-rc.0`, and repinning each is a separate,
+separately authorized increment.

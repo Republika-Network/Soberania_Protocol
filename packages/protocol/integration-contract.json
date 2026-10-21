@@ -1,23 +1,38 @@
 {
   "_comment": "Frozen cross-repository integration contract for Soberanía Protocol. Shipped inside the @aoc/protocol tarball so a consumer can verify, offline and without network access, that what it installed is the surface it agreed to depend on. This file describes an integration surface; it authorizes no publication, deployment, registry access, or release. Normative prose: docs/integration/CROSS_REPO_INTEGRATION_CONTRACT.md in Soberania-Protocol/Soberania_Protocol.",
   "contract": "aoc.cross-repository-integration",
-  "contractVersion": "1.0.1",
+  "contractVersion": "1.0.2",
   "status": "frozen",
   "frozenAt": "2026-08-24",
   "frozenBy": "P0-PKG-01",
   "lastMetadataUpdate": {
-    "contractVersion": "1.0.1",
-    "by": "P0-CANON-02",
-    "at": "2026-08-25",
+    "contractVersion": "1.0.2",
+    "by": "SOBE-SEC-01F",
+    "at": "2026-10-20",
     "classification": "editorialOrMetadataOnly",
-    "what": "The candidate identity this contract binds moved to 0.2.0-rc.1. The export set, export map digest, install forms and consumer obligations are all unchanged — only package identity moved, which is why changeControl classifies this as a patch and not a minor.",
+    "what": "The candidate identity this contract binds moved to 0.2.0-rc.2. The export set, export map digest, install forms and consumer obligations are all unchanged — only package identity moved, which is why changeControl classifies this as a patch and not a minor. The package behind that identity verifies signatures and issuer bindings more strictly than 0.2.0-rc.1; that is a package behaviour change recorded in its changelog, not a change to this contract.",
     "burnedCandidate": {
-      "identity": "0.2.0-rc.0",
-      "sha256": "dbe8a08f432a0324ad34eb7cb85054b6dcd23c0d9a073914edf23fccd10445e5",
-      "reason": "canonicalizeJSON truncated the exponent of numbers rendered in exponential notation with a fractional mantissa, so distinct values could produce identical canonical bytes and therefore identical digests",
-      "evidenceRetained": "docs/release/evidence/aoc-protocol-0.2.0-rc.0-* are immutable and unmodified; see docs/release/RELEASE_CANDIDATE_READINESS.md sections 8 and 9"
+      "identity": "0.2.0-rc.1",
+      "sha256": "b0d6ee6ff2010c4addab0bd683e2a89b9b2246f430c7e892fdc3d4123f3a3f60",
+      "reason": "security defect SOBE-SEC-01: manifest and claim verification could report an issuer binding as verified without cryptographically tying the signing key to the registered issuer key; 0.2.0-rc.0 carries the same defect",
+      "evidenceRetained": "docs/release/evidence/aoc-protocol-0.2.0-rc.1-* are immutable and unmodified; see docs/release/RELEASE_CANDIDATE_READINESS.md section 10"
     }
   },
+  "previousMetadataUpdates": [
+    {
+      "contractVersion": "1.0.1",
+      "by": "P0-CANON-02",
+      "at": "2026-08-25",
+      "classification": "editorialOrMetadataOnly",
+      "what": "The candidate identity this contract binds moved to 0.2.0-rc.1. The export set, export map digest, install forms and consumer obligations are all unchanged — only package identity moved, which is why changeControl classifies this as a patch and not a minor.",
+      "burnedCandidate": {
+        "identity": "0.2.0-rc.0",
+        "sha256": "dbe8a08f432a0324ad34eb7cb85054b6dcd23c0d9a073914edf23fccd10445e5",
+        "reason": "canonicalizeJSON truncated the exponent of numbers rendered in exponential notation with a fractional mantissa, so distinct values could produce identical canonical bytes and therefore identical digests",
+        "evidenceRetained": "docs/release/evidence/aoc-protocol-0.2.0-rc.0-* are immutable and unmodified; see docs/release/RELEASE_CANDIDATE_READINESS.md sections 8 and 9"
+      }
+    }
+  ],
   "normativeDocument": "docs/integration/CROSS_REPO_INTEGRATION_CONTRACT.md",
   "protocol": {
     "role": "producer",
@@ -25,7 +40,7 @@
     "packageRepositoryUrl": "git+https://github.com/Architects-of-Change-Protocol/Architects_of_Change_Protocol.git",
     "packageRepositoryUrlNote": "packages/protocol/package.json still declares the pre-rebrand slug, as does the rest of this repository (frontend, docs, and tests assert it). The git remote this contract was frozen from is Soberania-Protocol/Soberania_Protocol. Both identifiers are recorded rather than reconciled: whether they are one renamed repository is a GitHub-side fact this repository does not evidence, and consumers follow the URL in the package metadata.",
     "package": "@aoc/protocol",
-    "version": "0.2.0-rc.1",
+    "version": "0.2.0-rc.2",
     "license": "Apache-2.0",
     "private": true,
     "engines": { "node": ">=20" },
@@ -35,9 +50,9 @@
     "distribution": {
       "state": "internal-tarball",
       "prereleaseFamily": "rc",
-      "candidateIdentity": "0.2.0-rc.1",
-      "candidateIdentityDerivedBy": "Changesets pre mode (tag rc) — .changeset/pre.json. The 0.2.0 minor derives from pre-existing accumulated changesets; the rc.1 iteration derives from the canonical-JSON repair changeset, which is a patch. Computed by `changeset version`, never hand-edited.",
-      "artifactName": "aoc-protocol-0.2.0-rc.1.tgz",
+      "candidateIdentity": "0.2.0-rc.2",
+      "candidateIdentityDerivedBy": "Changesets pre mode (tag rc) — .changeset/pre.json. The 0.2.0 minor derives from pre-existing accumulated changesets; the rc.2 iteration derives from the SOBE-SEC-01 security changeset. Computed by `changeset version`, never hand-edited.",
+      "artifactName": "aoc-protocol-0.2.0-rc.2.tgz",
       "producedBy": "npm run protocol:rc:artifact",
       "reproducible": true,
       "integrityRecordedIn": "dist-rc/protocol-consumer.lock.json and docs/release/evidence/",
