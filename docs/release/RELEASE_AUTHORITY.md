@@ -82,6 +82,50 @@ findings lie. That description was reduced to their identifiers so that public d
 not locate unresolved issues; the authorization's scope is unchanged, and the full record is kept in
 the restricted security file.
 
+### `@aoc/protocol@0.2.0-rc.3` — SOBE-SEC-01T (founder, 2026-10-21)
+
+**Authorized by the founder:** preparing the internal security release candidate identity
+`@aoc/protocol@0.2.0-rc.3`, prerelease family `rc` (unchanged), distribution channel **internal,
+checksum-pinned tarball only**. Within that identity, the authorization covers:
+
+- a new changeset for `@aoc/protocol` classified **minor**, because the fix changes caller-visible
+  verification semantics (see below), and computing the version from it with `changeset version` in
+  pre mode — never by hand;
+- the dependency-graph consequences of that computation: `@aoc/asset-protocolization`,
+  `@aoc/audit-sdk`, `@aoc/capability-tokens`, `@aoc/consent-engine` and `@aoc/scoped-access`, each
+  `0.1.1-rc.2` → `0.1.1-rc.3`, because each pins `@aoc/protocol` exactly;
+- the integration contract's identity move, `aoc.cross-repository-integration` `1.0.2` → `1.0.3`,
+  classified `editorialOrMetadataOnly` because the export set and export map digest are unchanged.
+
+**Not yet authorized:** recording this candidate's release evidence (release manifest, SBOM,
+consumer lock, artifact record). The evidence names the source commit a consumer re-packs from, and
+that commit's public identity is decided separately; until then `protocol:rc:check` reports the
+release manifest evidence as stale, by design.
+
+**Why:** `0.2.0-rc.2` carries a further SOBE-SEC-01 defect (N1). Manifest and claim verification let
+a caller-supplied issuer replace the issuer the signed content names as the identity an issuer
+binding was verified for. The issuer supplied by a caller is now an expected issuer that can only
+narrow that identity; a mismatch fails the binding. `0.2.0-rc.0` and `0.2.0-rc.1` carry the same
+defect and were already burned. The export surface is unchanged; the behaviour change is the reason
+the changeset is minor.
+
+**`0.2.0-rc.2` is superseded and its number is burned.** It was never distributed: no consumer pins
+it. Its release manifest, SBOM, consumer lock and artifact record
+(`docs/release/evidence/aoc-protocol-0.2.0-rc.2-*`, `rc-artifact-0.2.0-rc.2.md`) are retained
+unmodified as the record of what was built and why it was abandoned. `sha256:9f81f112…4104` remains
+its identity; it is not regenerated, rewritten or deleted.
+
+**Not authorized:** npm or any registry publication, dist-tag creation or movement, `private:
+false`, git tags, GitHub Releases, changes to a security advisory, deployment, stable `0.2.0`,
+General Availability, handover of the artifact to any downstream repository, and repinning or
+otherwise modifying any consumer (Live Data Rail, Frontera, PMFreak, Soberanía Enterprise).
+Downstream rollout needs its own founder authorization.
+
+**What `0.2.0-rc.3` does not establish.** It closes SOBE-SEC-01 including N1 only. Findings P0-2,
+P0-3 and R3-4a from the same security review remain open and are tracked privately, together with
+related follow-ups. They are outside this candidate's scope and are not fixed by it. An `rc` is a
+candidate for validation, not a release.
+
 ## Credential custody
 
 - **No publication credentials exist in this repository** — no tokens, no `.npmrc` auth, no

@@ -77,8 +77,8 @@ describe('cross-repository integration contract', () => {
     // drift as a side effect of an ordinary change -- moving this line is a
     // deliberate act that belongs in the same commit as the authorization
     // record. 0.2.0-rc.0 -> 0.2.0-rc.1 was P0-CANON-02; 0.2.0-rc.1 ->
-    // 0.2.0-rc.2 was SOBE-SEC-01F.
-    const AUTHORIZED_CANDIDATE = '0.2.0-rc.2';
+    // 0.2.0-rc.2 was SOBE-SEC-01F; 0.2.0-rc.2 -> 0.2.0-rc.3 was SOBE-SEC-01T.
+    const AUTHORIZED_CANDIDATE = '0.2.0-rc.3';
     expect(contract.protocol.version).toBe(AUTHORIZED_CANDIDATE);
     expect(contract.protocol.distribution.candidateIdentity).toBe(AUTHORIZED_CANDIDATE);
     expect(contract.protocol.distribution.prereleaseFamily).toBe('rc');
@@ -97,7 +97,8 @@ describe('cross-repository integration contract', () => {
     // 0.2.0-rc.0 was abandoned because canonicalizeJSON could map distinct
     // numeric inputs onto identical canonical bytes, and therefore identical
     // digests (UG-003). Three consumers vendored those bytes by checksum.
-    // 0.2.0-rc.1 was abandoned for the SOBE-SEC-01 issuer-binding defect. A
+    // 0.2.0-rc.1 was abandoned for the SOBE-SEC-01 issuer-binding defect, and
+    // 0.2.0-rc.2 for the SOBE-SEC-01 (N1) expected-issuer defect. A
     // superseded candidate that vanishes from the contract is how a consumer
     // ends up unable to tell a burned pin from a current one, so an identity
     // move pushes the previous update onto the history instead of replacing it.
@@ -110,12 +111,15 @@ describe('cross-repository integration contract', () => {
       expect(burned.identity).not.toBe(contract.protocol.distribution.candidateIdentity);
       burnedById.set(burned.identity, burned);
     }
-    expect(contract.lastMetadataUpdate.burnedCandidate.identity).toBe('0.2.0-rc.1');
+    expect(contract.lastMetadataUpdate.burnedCandidate.identity).toBe('0.2.0-rc.2');
     expect(burnedById.get('0.2.0-rc.0')?.sha256).toBe(
       'dbe8a08f432a0324ad34eb7cb85054b6dcd23c0d9a073914edf23fccd10445e5',
     );
     expect(burnedById.get('0.2.0-rc.1')?.sha256).toBe(
       'b0d6ee6ff2010c4addab0bd683e2a89b9b2246f430c7e892fdc3d4123f3a3f60',
+    );
+    expect(burnedById.get('0.2.0-rc.2')?.sha256).toBe(
+      '9f81f112a7c391dc781cb831e01a645e9330408d5e67d27df118887de58c4104',
     );
   });
 
@@ -124,7 +128,7 @@ describe('cross-repository integration contract', () => {
     // editorialOrMetadataOnly -> patch. If the export map digest ever moves in
     // the same breath as an identity change, this is the wrong classification
     // and the contract needs a minor or major instead.
-    expect(contract.contractVersion).toBe('1.0.2');
+    expect(contract.contractVersion).toBe('1.0.3');
     expect(contract.lastMetadataUpdate?.contractVersion).toBe(contract.contractVersion);
     expect(contract.lastMetadataUpdate?.classification).toBe('editorialOrMetadataOnly');
     expect(contract.changeControl.editorialOrMetadataOnly).toMatch(/patch/i);
