@@ -576,3 +576,89 @@ R3-4a) remain open and are tracked privately; the authorization layer is **not**
 a whole. No consumer has been moved to `0.2.0-rc.2`: per §9, Live Data Rail, Frontera and PMFreak
 were last recorded as pinned to the burned `0.2.0-rc.0`, and repinning each is a separate,
 separately authorized increment.
+
+## 11. SOBE-SEC-01T — candidate `0.2.0-rc.3` cut; `0.2.0-rc.2` burned (2026-10-21)
+
+**Founder authorization on record:** see [`RELEASE_AUTHORITY.md`](RELEASE_AUTHORITY.md),
+"Candidate authorizations on record". In short: the internal candidate identity
+`@aoc/protocol@0.2.0-rc.3`, prerelease family `rc` (unchanged), internal checksum-pinned tarball
+only; a minor changeset for caller-visible expected-issuer semantics; the five dependent bumps; the
+integration contract's metadata-only move to `1.0.3`; and, authorized separately (SOBE-SEC-01V),
+successor-specific release evidence generated locally from source commit `fd705f68…`.
+
+**Not authorized, and not done:** npm or any registry publication, dist-tag creation or movement,
+`npm publish`, `private: false`, git tag creation, GitHub Release, changes to a security advisory,
+deployment, stable `0.2.0`, General Availability, handover of the artifact to any downstream
+repository, or repinning any consumer. `private: true` still holds. As for `0.2.0-rc.2`, **no
+internal handover is authorized.**
+
+### The burned → replacement chain
+
+| | |
+| --- | --- |
+| **BURNED** | `@aoc/protocol@0.2.0-rc.2`, `sha256:9f81f112a7c391dc781cb831e01a645e9330408d5e67d27df118887de58c4104` |
+| **WHY** | Security defect SOBE-SEC-01 (N1): a caller-supplied issuer could replace the issuer named in a signed manifest or claim as the identity issuer binding was verified for. `0.2.0-rc.0` and `0.2.0-rc.1` carry the same defect. |
+| **REPLACED BY** | `@aoc/protocol@0.2.0-rc.3`, `sha256:3d17beff5a0538172f3d888184459511c44540332ccde51a30da32afa1b358f4` |
+| **STATUS** | Internal RC candidate for validation. **Not published, not handed over, not stable, not GA.** |
+
+`0.2.0-rc.2` is burned permanently and its number is never reused. It was never handed to any
+consumer. Its release manifest, SBOM, consumer lock and artifact record are **retained unmodified**;
+so are all `0.2.0-rc.0` and `0.2.0-rc.1` files. Every pre-existing file under
+`docs/release/evidence/` hashes identically before and after this increment.
+
+### What changed in the package
+
+`verifySovereignManifest`, `verifySignedSovereignClaim` and `AOC.VERIFIABILITY` now evaluate issuer
+binding only for the issuer the signed content names (a string, or a `CanonicalPrincipalRef`'s
+`id`). An `issuer` / `issuerId` supplied by the caller is an expected issuer: it can narrow that
+identity, never replace it, and a mismatch makes `issuerBinding` `unverified` without consulting the
+key resolver. The `0.2.0-rc.3` changelog entry in `packages/protocol/CHANGELOG.md` lists the
+compatibility consequences. The export map (`a67d65b1…`, 15 keys) and the runtime symbol set
+(`5df05c3a…`, 260) are unchanged; the changeset is `minor` because the semantics are
+caller-visible, and the version is the same under either classification.
+
+### The successor identity was derived, not chosen
+
+`changeset version` in pre mode (tag `rc`) computed `0.2.0-rc.3`. Five packages moved with it —
+`@aoc/asset-protocolization`, `@aoc/audit-sdk`, `@aoc/capability-tokens`, `@aoc/consent-engine`,
+`@aoc/scoped-access`, all `0.1.1-rc.2` → `0.1.1-rc.3` — because each pins `@aoc/protocol` exactly.
+Nothing else changed version.
+
+### Integration contract: `1.0.2` → `1.0.3`
+
+Only `protocol.version`, `distribution.candidateIdentity`, `distribution.candidateIdentityDerivedBy`
+and `distribution.artifactName` moved, plus the metadata record: `lastMetadataUpdate` records
+`0.2.0-rc.2` as burned and states the package behaviour change, and the previous `1.0.2` record moved
+verbatim into `previousMetadataUpdates`. That is `editorialOrMetadataOnly`: patch `contractVersion`.
+Consumers verifying the shipped contract must now expect `1.0.3`.
+
+### Clean source → artifact chain
+
+The candidate source was committed first (`fd705f689e04781748e308368a10e52ae32af079`, clean tree,
+`packages/protocol` tree `12a41cb0…`), and only then packed and evidenced; the manifest records
+`protocolWorkspaceClean: true` and the consumer lock `sourceClean: true`. The artifact is 288,728
+bytes and 410 files, the same file list as `0.2.0-rc.2`. Fresh POSIX clones of `fd705f68…` (umask
+`022`) built and packed under Node `v22.23.1` and Node `v20.20.2` produce byte-identical tarballs;
+every tar entry is `0644`. The repository's consumer fixtures install the artifact and pass.
+
+### Provenance: what is and is not established
+
+| | |
+| --- | --- |
+| **Package reproducibility** | Established: the tarball is a reproducible function of the source commit. |
+| **Source-commit identity** | Established locally: `fd705f68…` is the commit the evidence names, and it builds this artifact. |
+| **Public source availability** | **Not yet established.** When this section was written, `fd705f68…` was not reachable from any public branch, pull-request reference or tag. It is to be preserved by a public reference when the fix is disclosed, and that reference will be recorded here; until then the consumer lock's "fresh pack from the pinned commit" can be performed only where the commit is available. |
+| **Release readiness** | An internal candidate for validation only. Not a release, not handed over. |
+| **Production security readiness** | **Not established.** See below. |
+
+**Correction to §10, recorded here rather than by rewriting it:** the `0.2.0-rc.2` evidence names
+source commit `9f495f3c…`, which was never published. Its `packages/protocol` tree (`eaacf283…`) is
+what was carried forward, and a pack of that tree reproduces `sha256:9f81f112…4104`. The `0.2.0-rc.2`
+evidence files themselves are unchanged.
+
+### What `0.2.0-rc.3` does not establish
+
+It closes SOBE-SEC-01, including N1, only. Findings P0-2, P0-3 and R3-4a from the same security
+review remain open and are tracked privately, together with related follow-ups; the authorization
+layer is **not** production-safe as a whole. No consumer has been moved to `0.2.0-rc.2` or
+`0.2.0-rc.3`, and repinning each is a separate, separately authorized increment.

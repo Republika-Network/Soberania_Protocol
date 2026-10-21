@@ -1,0 +1,43 @@
+{
+  "_comment": "Consumer lock for @aoc/protocol. Copy this next to the vendored tarball in the consuming repository and re-verify it in CI: repository + commit + version + sha256 must match a fresh pack from the pinned commit.",
+  "package": "@aoc/protocol",
+  "version": "0.2.0-rc.3",
+  "repository": "Soberania-Protocol/Soberania_Protocol",
+  "commit": "fd705f689e04781748e308368a10e52ae32af079",
+  "sourceClean": true,
+  "artifact": {
+    "filename": "aoc-protocol-0.2.0-rc.3.tgz",
+    "bytes": 288728,
+    "sha256": "3d17beff5a0538172f3d888184459511c44540332ccde51a30da32afa1b358f4",
+    "sha512": "62b864de877004ea7c96638d4d34a22e268806e23e6a85e0891612bf8d0889e3b45a545ac3c087404902dd729dd50eb823257e0377666a36bf05bdaa59d3632f",
+    "integrity": "sha512-Yrhk3odwBOp8lmONTTSiLiaIBuI+aoXgiRYSv40IieO0WlRaw8CHQEkC3XKd1Q64IyV+A3dmaja/Bb2qWdNjLw==",
+    "reproducible": true,
+    "fileCount": 410
+  },
+  "integrationContract": {
+    "contract": "aoc.cross-repository-integration",
+    "contractVersion": "1.0.3",
+    "status": "frozen",
+    "shippedAt": "node_modules/@aoc/protocol/integration-contract.json"
+  },
+  "verifiedExports": [
+    ".",
+    "./contracts",
+    "./errors",
+    "./claims",
+    "./adapters",
+    "./runtime-registry",
+    "./canonical",
+    "./identity",
+    "./manifest",
+    "./portability",
+    "./interoperability",
+    "./licensing",
+    "./governance-compatibility",
+    "./sovereignty-capabilities",
+    "./package.json"
+  ],
+  "installForm": "file:./vendor/aoc-protocol-0.2.0-rc.3.tgz",
+  "registryPublication": "not performed — founder-gated (docs/release/RELEASE_AUTHORITY.md, docs/release/PRERELEASE_POLICY.md)",
+  "knownGaps": []
+}

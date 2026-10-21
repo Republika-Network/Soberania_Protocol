@@ -1,6 +1,6 @@
 # @aoc/protocol Known Limitations
 
-Verified facts about what the release-candidate state does **not** include, as of 2026-10-20.
+Verified facts about what the release-candidate state does **not** include, as of 2026-10-21.
 Consumers and decision-makers should read this alongside
 [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md).
 
@@ -55,11 +55,13 @@ Consumers and decision-makers should read this alongside
     mitigation so it is not emitting colliding digests meanwhile, and **no assessment has been made
     of whether the other two are affected in practice**. See
     [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md) §8–§9. `0.2.0-rc.1` has
-    since been burned in turn (item 14); the current successor is `0.2.0-rc.2`.
-13. **The successor is an internal tarball, not a release.** `0.2.0-rc.2` is not published, not
+    since been burned in turn (item 14), and so has `0.2.0-rc.2` (item 15); the current successor
+    is `0.2.0-rc.3`.
+13. **The successor is an internal tarball, not a release.** `0.2.0-rc.3` is not published, not
     tagged, carries no GitHub Release, and is not stable `0.2.0`. It exists in the git-ignored
-    `dist-rc/` directory and is reproducible from commit `9f495f3c…`. Unlike `0.2.0-rc.1`, it is
-    **not authorized for handover** to any downstream repository. Every limitation above about
+    `dist-rc/` directory and is reproducible from commit `fd705f68…`, which is **not yet publicly
+    retrievable** (see item 15). Unlike `0.2.0-rc.1`, it is **not authorized for handover** to any
+    downstream repository. Every limitation above about
     registry selection, `@aoc` scope control, release-owner designation and `private: true` is
     unchanged by it.
 14. **`@aoc/protocol@0.2.0-rc.1` is burned for security defect SOBE-SEC-01, and `0.2.0-rc.2` fixes
@@ -72,3 +74,16 @@ Consumers and decision-makers should read this alongside
     defective binding. **It does not make the authorization layer production-safe:** three further
     findings from the same security review (P0-2, P0-3, R3-4a) remain open and are tracked
     privately. See [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md) §10.
+15. **`@aoc/protocol@0.2.0-rc.2` is burned for a further SOBE-SEC-01 defect (N1), and `0.2.0-rc.3`
+    fixes only that defect.** In `0.2.0-rc.0` through `0.2.0-rc.2`, an issuer supplied by the caller
+    to manifest or claim verification could replace the issuer the signed content names. In
+    `0.2.0-rc.3` (`sha256:3d17beff…`) it is an expected issuer that can only narrow that identity; a
+    caller passing a different issuer now gets `unverified` (see the `0.2.0-rc.3` entry in
+    `packages/protocol/CHANGELOG.md`). Treat a verification result as authenticating its issuer only
+    when `checks.issuerBinding` is `'verified'`; `valid` alone does not say that. `0.2.0-rc.2` was
+    never handed to any consumer, and no consumer has been moved to `0.2.0-rc.3`. Its source commit
+    `fd705f68…` reproduces the artifact but is **not yet publicly retrievable**; until a public
+    reference preserves it, the consumer lock's "fresh pack from the pinned commit" can be performed
+    only where that commit is available. **It does not make the authorization layer
+    production-safe:** P0-2, P0-3 and R3-4a remain open and are tracked privately. See
+    [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md) §11.

@@ -100,7 +100,12 @@ checksum-pinned tarball only**. Within that identity, the authorization covers:
 **Not yet authorized:** recording this candidate's release evidence (release manifest, SBOM,
 consumer lock, artifact record). The evidence names the source commit a consumer re-packs from, and
 that commit's public identity is decided separately; until then `protocol:rc:check` reports the
-release manifest evidence as stale, by design.
+release manifest evidence as missing, by design.
+
+*Amended by SOBE-SEC-01V (2026-10-21):* the founder authorized generating this candidate's release
+evidence locally and committing it, naming source commit `fd705f689e04781748e308368a10e52ae32af079`.
+That commit is verified locally but is not yet publicly retrievable; how it will be preserved is
+decided separately (see [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md) §11).
 
 **Why:** `0.2.0-rc.2` carries a further SOBE-SEC-01 defect (N1). Manifest and claim verification let
 a caller-supplied issuer replace the issuer the signed content names as the identity an issuer
