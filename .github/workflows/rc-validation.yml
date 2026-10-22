@@ -21,9 +21,15 @@ jobs:
           # as changeset-validation.yml.
           fetch-depth: 0
       - name: Ensure main ref exists for Changesets
+        # Changesets diffs against the local `main` branch. A pull_request checkout is a
+        # detached merge commit, so `main` is (re)created from origin/main. A push to main
+        # checks out `main` itself at the pushed commit, which is already the base, and git
+        # refuses to force-update a checked-out branch, so it is left as is.
         run: |
           git fetch origin main:refs/remotes/origin/main
-          git branch --force main origin/main
+          if [ "$(git symbolic-ref --quiet --short HEAD || true)" != "main" ]; then
+            git branch --force main origin/main
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
