@@ -1,6 +1,6 @@
 # @aoc/protocol Known Limitations
 
-Verified facts about what the release-candidate state does **not** include, as of 2026-10-21.
+Verified facts about what the release-candidate state does **not** include, as of 2026-10-22.
 Consumers and decision-makers should read this alongside
 [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md).
 
@@ -45,23 +45,26 @@ Consumers and decision-makers should read this alongside
     [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md). Enterprise's pinned
     tarball and compatibility lock still reference the pre-relicense artifact and will need
     revalidation at the next version cut.
-12. **`@aoc/protocol@0.2.0-rc.0` is burned, and three consumers are still pinned to it.** Its
-    `canonicalizeJSON` truncated the exponent of numbers rendered in exponential notation with a
-    fractional mantissa, so `7.9e-10` and `7.9e-100` produced identical canonical bytes and
-    identical SHA-256 material, and neither round-tripped. Repaired by P0-CANON-01 and shipped as
-    `0.2.0-rc.1` (`sha256:b0d6ee6f…`) by P0-CANON-02. **The repinning has not happened.** PMFreak,
-    Frontera and Live Data Rail each still vendor the burned `0.2.0-rc.0` by checksum; adopting the
-    successor is a separate increment in each repository. Live Data Rail carries a fail-closed
-    mitigation so it is not emitting colliding digests meanwhile, and **no assessment has been made
-    of whether the other two are affected in practice**. See
-    [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md) §8–§9. `0.2.0-rc.1` has
-    since been burned in turn (item 14), and so has `0.2.0-rc.2` (item 15); the current successor
-    is `0.2.0-rc.3`.
-13. **The successor is an internal tarball, not a release.** `0.2.0-rc.3` is not published, not
-    tagged, carries no GitHub Release, and is not stable `0.2.0`. It exists in the git-ignored
-    `dist-rc/` directory and is reproducible from commit `fd705f68…`, which is **not yet publicly
-    retrievable** (see item 15). Unlike `0.2.0-rc.1`, it is **not authorized for handover** to any
-    downstream repository. Every limitation above about
+12. **`@aoc/protocol@0.2.0-rc.0` is burned.** Its `canonicalizeJSON` truncated the exponent of
+    numbers rendered in exponential notation with a fractional mantissa, so `7.9e-10` and
+    `7.9e-100` produced identical canonical bytes and identical SHA-256 material, and neither
+    round-tripped. Repaired by P0-CANON-01 and shipped as `0.2.0-rc.1` (`sha256:b0d6ee6f…`) by
+    P0-CANON-02. When `0.2.0-rc.0` was burned (2026-08-25), PMFreak, Frontera and Live Data Rail
+    each vendored it by checksum. **Observed consumer state, 2026-10-21:** an inspection of each
+    repository's default branch found PMFreak, Frontera and Live Data Rail each pinned to
+    `0.2.0-rc.1` by checksum (`sha256:b0d6ee6f…`; Frontera as a development dependency). The
+    inspection covered those default branches only, not other branches, forks, built artifacts or
+    deployments. No assessment has been made of whether data any consumer produced while on
+    `0.2.0-rc.0` is affected. See [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md)
+    §8–§9 and §12. `0.2.0-rc.1` has since been burned in turn (item 14), and so has `0.2.0-rc.2`
+    (item 15); the current successor is `0.2.0-rc.3`, and no consumer has been moved to it.
+13. **The successor is an internal tarball, not a release.** `0.2.0-rc.3` is not published to npm
+    or any other registry, carries no GitHub Release and no release tag, and is not stable `0.2.0`.
+    It is not a declaration of production readiness. Its tarball is not distributed; it is
+    reproducible from source commit `fd705f689e04781748e308368a10e52ae32af079`, which is publicly
+    retrievable through pull request #393 and the source-provenance tag
+    `source/aoc-protocol-0.2.0-rc.3` (see item 15). Unlike `0.2.0-rc.1`, it is **not authorized
+    for handover** to any downstream repository. Every limitation above about
     registry selection, `@aoc` scope control, release-owner designation and `private: true` is
     unchanged by it.
 14. **`@aoc/protocol@0.2.0-rc.1` is burned for security defect SOBE-SEC-01, and `0.2.0-rc.2` fixes
@@ -82,8 +85,11 @@ Consumers and decision-makers should read this alongside
     `packages/protocol/CHANGELOG.md`). Treat a verification result as authenticating its issuer only
     when `checks.issuerBinding` is `'verified'`; `valid` alone does not say that. `0.2.0-rc.2` was
     never handed to any consumer, and no consumer has been moved to `0.2.0-rc.3`. Its source commit
-    `fd705f68…` reproduces the artifact but is **not yet publicly retrievable**; until a public
-    reference preserves it, the consumer lock's "fresh pack from the pinned commit" can be performed
-    only where that commit is available. **It does not make the authorization layer
-    production-safe:** P0-2, P0-3 and R3-4a remain open and are tracked privately. See
-    [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md) §11.
+    `fd705f68…` is publicly retrievable through pull request #393 (`refs/pull/393/head`) and the
+    unsigned annotated tag `source/aoc-protocol-0.2.0-rc.3`; the fix was squash-merged to `main` as
+    `3cb635db…`, whose `packages/protocol` tree is identical. A fresh pack of either commit
+    reproduces `sha256:3d17beff…`, so the consumer lock's "fresh pack from the pinned commit" can
+    be performed from the public repository. Both issuer-attribution flaws are described in the
+    published repository security advisory GHSA-c624-x7cg-8cf3. **It does not make the
+    authorization layer production-safe:** P0-2, P0-3 and R3-4a remain open and are tracked
+    privately. See [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md) §11–§12.
