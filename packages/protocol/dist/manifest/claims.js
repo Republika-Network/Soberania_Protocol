@@ -321,11 +321,15 @@ function signClaim(claim, privateKeyPem, signingKey, now) {
 }
 function verifySignedClaim(signed) {
     const reasons = [];
-    const recomputedDigest = (0, node_crypto_1.createHash)('sha256').update((0, canonical_1.canonicalizeJSON)(signed.claim)).digest('hex');
-    if (recomputedDigest !== signed.digest) {
+    // Each field is read once, and the claim is canonicalized once: the digest
+    // and the signature are both checked against that one serialization.
+    const { claim, digest, proof } = signed;
+    const canonical = (0, canonical_1.canonicalizeJSON)(claim);
+    if ((0, proof_1.digestCanonicalBytes)(canonical) !== digest) {
         reasons.push('CLAIM_DIGEST_MISMATCH');
     }
-    if (!(0, proof_1.verifySovereignSignature)(signed.claim, signed.proof)) {
+    const proofSnapshot = (0, proof_1.snapshotSovereignProof)(proof);
+    if (!proofSnapshot || !(0, proof_1.verifySovereignSignatureOverCanonical)(canonical, proofSnapshot)) {
         reasons.push('CLAIM_SIGNATURE_INVALID');
     }
     return { valid: reasons.length === 0, reasons };

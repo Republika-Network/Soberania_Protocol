@@ -1014,14 +1014,33 @@ describe('SM-08 / AOC.VERIFIABILITY issuer/key binding (BINDING TESTS 1-10)', ()
     }
   });
 
-  it('BINDING TEST 8b — a resolver override issuerId is what gets resolved', async () => {
+  it('BINDING TEST 8b — an issuerId that differs from the signed registrant is never resolved and fails the binding', async () => {
     const calls: string[] = [];
     const { signed } = signedManifestFixture();
-    await run(
-      { operation: 'verify-signed-manifest', signedManifest: signed, issuerId: 'principal:explicit-override' },
-      { resolver: boundResolver(KEY_PAIR.signingKey.keyId, calls) },
+    const verification = manifestVerification(
+      await run(
+        { operation: 'verify-signed-manifest', signedManifest: signed, issuerId: 'principal:explicit-override' },
+        { resolver: boundResolver(KEY_PAIR.signingKey.keyId, calls) },
+      ),
     );
-    expect(calls).toEqual(['principal:explicit-override']);
+    expect(calls).toEqual([]);
+    expect(verification.checks.issuerBinding).toBe('unverified');
+    expect(verification.reasons).toContain('ISSUER_BINDING_ISSUER_MISMATCH');
+    expect(verification.valid).toBe(false);
+  });
+
+  it('BINDING TEST 8b′ — an issuerId equal to the signed registrant resolves that registrant', async () => {
+    const calls: string[] = [];
+    const { signed } = signedManifestFixture();
+    const verification = manifestVerification(
+      await run(
+        { operation: 'verify-signed-manifest', signedManifest: signed, issuerId: ISSUER },
+        { resolver: boundResolver(KEY_PAIR.signingKey.keyId, calls) },
+      ),
+    );
+    expect(calls).toEqual([ISSUER]);
+    expect(verification.checks.issuerBinding).toBe('verified');
+    expect(verification.valid).toBe(true);
   });
 
   it('BINDING TEST 8c — a CanonicalPrincipalRef registrant resolves by its id and nothing else', async () => {
@@ -1122,7 +1141,7 @@ describe('SM-08 / AOC.VERIFIABILITY invocation validation and failure semantics'
     }
   });
 
-  it('a blank issuerId override is a malformed invocation', async () => {
+  it('a blank expected issuerId is a malformed invocation', async () => {
     const { signed } = signedManifestFixture();
     const result = await run({ operation: 'verify-signed-manifest', signedManifest: signed, issuerId: '  ' });
     expect(result.status).toBe('failed');

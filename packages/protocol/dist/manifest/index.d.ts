@@ -1,5 +1,5 @@
 export type { SovereignSigningKey, SovereignKeyPair, SovereignProof } from './proof';
-export { generateSovereignKeyPair, signSovereignPayload, verifySovereignSignature } from './proof';
+export { deriveSovereignKeyId, generateSovereignKeyPair, signSovereignPayload, verifySovereignSignature } from './proof';
 export { SovereignAssetState, isValidSovereignAssetState } from './state';
 export type { OriginClaim, AuthorityClaim, BuildOriginClaimInput, BuildAuthorityClaimInput } from './claims';
 export { AuthorityClaimKind, buildOriginClaim, buildAuthorityClaim } from './claims';

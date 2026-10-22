@@ -13,7 +13,13 @@ import { isCanonicalTimestamp } from '../claims/timestamps';
 import { isValidSovereignAssetId } from '../identity/sovereign-asset-id';
 import type { SovereignAssetId } from '../identity/sovereign-asset-id';
 import { canonicalizeJSON } from '../canonical';
-import { generateSovereignKeyPair, signSovereignPayload, verifySovereignSignature } from './proof';
+import {
+  digestCanonicalBytes,
+  generateSovereignKeyPair,
+  signSovereignPayload,
+  snapshotSovereignProof,
+  verifySovereignSignatureOverCanonical,
+} from './proof';
 import type { SovereignKeyPair, SovereignProof, SovereignSigningKey } from './proof';
 
 /**
@@ -491,12 +497,17 @@ export interface SignedClaimVerificationResult {
 export function verifySignedClaim(signed: SignedClaim): SignedClaimVerificationResult {
   const reasons: string[] = [];
 
-  const recomputedDigest = createHash('sha256').update(canonicalizeJSON(signed.claim)).digest('hex');
-  if (recomputedDigest !== signed.digest) {
+  // Each field is read once, and the claim is canonicalized once: the digest
+  // and the signature are both checked against that one serialization.
+  const { claim, digest, proof } = signed;
+  const canonical = canonicalizeJSON(claim);
+
+  if (digestCanonicalBytes(canonical) !== digest) {
     reasons.push('CLAIM_DIGEST_MISMATCH');
   }
 
-  if (!verifySovereignSignature(signed.claim, signed.proof)) {
+  const proofSnapshot = snapshotSovereignProof(proof);
+  if (!proofSnapshot || !verifySovereignSignatureOverCanonical(canonical, proofSnapshot)) {
     reasons.push('CLAIM_SIGNATURE_INVALID');
   }
 

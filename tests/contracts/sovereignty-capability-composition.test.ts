@@ -401,9 +401,12 @@ describe('SM-04 / regression and boundary guarantees (REGRESSION TESTS)', () => 
     // the canonical `ResourceRef`/`CanonicalId` types that projection is
     // expressed in — `contracts` is a types-only module with no runtime
     // behaviour and is the canonical home of `ResourceRef`, so importing it is
-    // reuse rather than a new dependency. Still strictly Protocol-internal: no
-    // Enterprise, runtime, provider or storage module.
-    const allowed = /^(\.\.\/\.\.\/(adapters|canonical|contracts|governance-compatibility|identity|licensing|manifest|portability|interoperability|claims\/(primitives|standing|timestamps))|\.\.\/(capability-ref|implementation|invocation|ids|time)|\.\/(canonical-ref|governance-compatibility|identity|integrity|interoperability|licensing-terms|portability|provenance|verifiability))$/;
+    // reuse rather than a new dependency. SOBE-SEC-01.2 lets the Verifiability
+    // capsule read the canonical layer's internal single-read capture helpers
+    // (`canonical/snapshot`), so it attributes evidence from the same captured
+    // bytes it verifies instead of restating that capture. Still strictly
+    // Protocol-internal: no Enterprise, runtime, provider or storage module.
+    const allowed = /^(\.\.\/\.\.\/(adapters|canonical(\/snapshot)?|contracts|governance-compatibility|identity|licensing|manifest|portability|interoperability|claims\/(primitives|standing|timestamps))|\.\.\/(capability-ref|implementation|invocation|ids|time)|\.\/(canonical-ref|governance-compatibility|identity|integrity|interoperability|licensing-terms|portability|provenance|verifiability))$/;
     for (const { file, source } of capsuleSources()) {
       const specifiers = [...source.matchAll(/(?:import|export)[^'"]*from\s+['"]([^'"]+)['"]/g)].map((m) => m[1]);
       for (const specifier of specifiers) {

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.invokeSovereigntyCapability = invokeSovereigntyCapability;
+const snapshot_1 = require("../canonical/snapshot");
 const identity_1 = require("../identity");
 const capability_ref_1 = require("./capability-ref");
 const evidence_1 = require("./evidence");
@@ -56,6 +57,56 @@ function buildInvocationEvidence(invocation, completedAt, outcome, subject, reas
             ? {}
             : { evidenceRefs: Object.freeze([...evidenceRefs]) }),
     });
+}
+/**
+ * Captures the caller's invocation envelope exactly once (SOBE-SEC-01.2).
+ *
+ * The envelope is validated, handed to the implementation and turned into
+ * evidence; were each of those to read the caller's object afresh, a getter or
+ * proxy could show a validated subject to the implementation and a different
+ * one to the evidence. So every field is read once into a frozen copy, and
+ * nothing after this reads the caller's object. The subject is rebuilt from its
+ * canonical bytes and the capability ref from its two fields; `input` is
+ * carried by reference, because what it means is the implementation's business
+ * and the implementation captures it itself. Presence is preserved, so an
+ * ordinary envelope validates exactly as before; a subject that cannot be
+ * canonicalized becomes `null`, and an envelope that cannot be read at all
+ * becomes `null`, both of which preflight rejects.
+ */
+function captureInvocation(value) {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        return value;
+    }
+    // The outcome is assigned rather than returned from the `catch`, so an
+    // unreadable envelope is an explicit negative result that preflight rejects.
+    const envelope = {};
+    let readable = true;
+    try {
+        for (const key of ['schemaVersion', 'invocationId', 'requestedAt', 'correlationId']) {
+            const field = (0, snapshot_1.readOnce)(value, key);
+            if (field !== undefined || (0, snapshot_1.hasOwnOnce)(value, key))
+                envelope[key] = field;
+        }
+        const capability = (0, snapshot_1.readOnce)(value, 'capability');
+        envelope.capability =
+            typeof capability === 'object' && capability !== null && !Array.isArray(capability)
+                ? Object.freeze({ id: (0, snapshot_1.readOnce)(capability, 'id'), version: (0, snapshot_1.readOnce)(capability, 'version') })
+                : capability;
+        const subject = (0, snapshot_1.readOnce)(value, 'subject');
+        if (subject !== undefined) {
+            envelope.subject = (0, snapshot_1.canonicalSnapshot)(subject)?.value ?? null;
+        }
+        else if ((0, snapshot_1.hasOwnOnce)(value, 'subject')) {
+            envelope.subject = undefined;
+        }
+        if ((0, snapshot_1.hasOwnOnce)(value, 'input')) {
+            envelope.input = (0, snapshot_1.readOnce)(value, 'input');
+        }
+    }
+    catch {
+        readable = false;
+    }
+    return readable ? Object.freeze(envelope) : null;
 }
 /**
  * Delivers evidence to an explicitly configured sink exactly once.
@@ -151,27 +202,30 @@ function preflightReasons(invocation, implementationCapability) {
  */
 async function invokeSovereigntyCapability(invocation, implementation, options = {}) {
     const clock = options.clock ?? time_1.systemSovereigntyCapabilityClock;
-    const rejectionReasons = preflightReasons(invocation, implementation?.capability);
+    // From here on only the capture is read: preflight, the implementation and
+    // the evidence all see the same envelope.
+    const envelope = captureInvocation(invocation);
+    const rejectionReasons = preflightReasons(envelope, implementation?.capability);
     if (rejectionReasons.length > 0) {
         throw new invocation_error_1.SovereigntyCapabilityInvocationError(invocation_error_1.SOVEREIGNTY_CAPABILITY_INVOCATION_ERROR_CODES.rejected, {
             reasonCodes: rejectionReasons,
-            ...(typeof invocation?.invocationId === 'string' ? { invocationId: invocation.invocationId } : {}),
-            ...((0, capability_ref_1.isValidSovereigntyCapabilityRef)(invocation?.capability) ? { capability: invocation.capability } : {}),
+            ...(typeof envelope?.invocationId === 'string' ? { invocationId: envelope.invocationId } : {}),
+            ...((0, capability_ref_1.isValidSovereigntyCapabilityRef)(envelope?.capability) ? { capability: envelope.capability } : {}),
         });
     }
     let outcome;
     try {
-        outcome = await implementation.invoke(invocation);
+        outcome = await implementation.invoke(envelope);
     }
     catch (error) {
-        throw await failWithImplementationFault(invocation, clock, options, REASON_IMPLEMENTATION_ERROR, error);
+        throw await failWithImplementationFault(envelope, clock, options, REASON_IMPLEMENTATION_ERROR, error);
     }
     if (!(0, implementation_1.isValidSovereigntyCapabilityExecutionOutcome)(outcome)) {
-        throw await failWithImplementationFault(invocation, clock, options, REASON_INVALID_OUTCOME, undefined);
+        throw await failWithImplementationFault(envelope, clock, options, REASON_INVALID_OUTCOME, undefined);
     }
     const completedAt = (0, time_1.toUtcTimestamp)(clock());
-    const subject = (0, result_1.resolveSovereigntyCapabilitySubject)(invocation, outcome);
-    const evidence = buildInvocationEvidence(invocation, completedAt, outcome.status, subject, outcome.status === 'failed' ? outcome.reasonCodes : undefined, outcome.evidenceRefs);
+    const subject = (0, result_1.resolveSovereigntyCapabilitySubject)(envelope, outcome);
+    const evidence = buildInvocationEvidence(envelope, completedAt, outcome.status, subject, outcome.status === 'failed' ? outcome.reasonCodes : undefined, outcome.evidenceRefs);
     const deliveryFailure = await deliverEvidence(options.evidenceSink, evidence);
     if (deliveryFailure !== undefined) {
         // The capability already ran and may already have had side effects.
@@ -180,17 +234,17 @@ async function invokeSovereigntyCapability(invocation, implementation, options =
         // implementation is emphatically not re-run.
         throw new invocation_error_1.SovereigntyCapabilityInvocationError(invocation_error_1.SOVEREIGNTY_CAPABILITY_INVOCATION_ERROR_CODES.evidenceDeliveryFailed, {
             reasonCodes: [REASON_EVIDENCE_DELIVERY_FAILED],
-            invocationId: invocation.invocationId,
+            invocationId: envelope.invocationId,
             capability: evidence.capability,
             evidenceDelivered: false,
         }, { cause: deliveryFailure, evidence });
     }
     const base = {
         schemaVersion: result_1.SOVEREIGNTY_CAPABILITY_RESULT_SCHEMA_VERSION,
-        invocationId: invocation.invocationId,
+        invocationId: envelope.invocationId,
         capability: evidence.capability,
         completedAt,
-        ...(invocation.correlationId === undefined ? {} : { correlationId: invocation.correlationId }),
+        ...(envelope.correlationId === undefined ? {} : { correlationId: envelope.correlationId }),
         ...(evidence.subject === undefined ? {} : { subject: evidence.subject }),
         evidence,
     };
