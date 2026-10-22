@@ -3,7 +3,7 @@ import { CapabilityRuntime } from "@aoc-runtime/capability-runtime";
 import { ConsentRuntime } from "@aoc-runtime/consent-runtime";
 import { GovernanceRuntime } from "@aoc-runtime/governance-runtime";
 import { ActorRef, AuthorizationDecisionEnvelope, AuthorizationFailedStage, GovernanceScope, NamespaceRef, GovernanceSignature, TrustBoundaryScope } from "@aoc-runtime/shared-types";
-import { TrustRegistryRuntime } from "@aoc-runtime/trust-registry-runtime";
+import { FederatedAuthorityClaims, FederatedAuthorityVerifier } from "@aoc-runtime/trust-registry-runtime";
 export type PolicyValue = string | number | boolean | null | string[] | number[] | boolean[];
 export type PolicyFieldPath = `actor.${string}` | `namespace.${string}` | `workspace.${string}` | `machine.${string}` | `capability.${string}` | `runtime.${string}` | `temporal.${string}` | string;
 export interface PolicyFieldRef {
@@ -134,9 +134,23 @@ export interface PolicyRuntimeContext {
     };
     at?: string;
 }
+/**
+ * A federated authority's signed assertion for this request. The signature
+ * must cover the request's actor, action, resource, scope and namespace
+ * together with `claims` (see `buildFederatedAuthorityPayload`).
+ *
+ * - Any value other than `undefined`, including `null`, counts as supplied and
+ *   must verify; anything that does not is denied (fails closed).
+ * - When it is supplied, `AuthorizationInput.at`, if set, must be within the
+ *   verifier's clock skew of its clock, or the request is denied.
+ * - Verification consumes the assertion's nonce before policy, governance,
+ *   capability and consent are evaluated; a denial by any of them does not
+ *   restore it (see `FederatedAuthorityVerifier`).
+ */
 export interface FederatedAuthorityInput {
+    claims: FederatedAuthorityClaims;
     signature: GovernanceSignature;
-    scope?: TrustBoundaryScope;
+    scope: TrustBoundaryScope;
     provenance?: Record<string, unknown>;
 }
 export interface AuthorizationInput extends PolicyRuntimeContext {
@@ -156,9 +170,9 @@ export declare class AuthorizationRuntime {
     private readonly capability;
     private readonly consent;
     private readonly audit;
-    private readonly trustRegistry?;
+    private readonly federatedAuthorityVerifier?;
     private readonly policyEngine;
-    constructor(governance: GovernanceRuntime, capability: CapabilityRuntime, consent: ConsentRuntime, audit: AuditRuntime, trustRegistry?: TrustRegistryRuntime | undefined);
+    constructor(governance: GovernanceRuntime, capability: CapabilityRuntime, consent: ConsentRuntime, audit: AuditRuntime, federatedAuthorityVerifier?: FederatedAuthorityVerifier | undefined);
     evaluate(input: AuthorizationInput): Promise<AuthorizationDecision>;
 }
 export {};

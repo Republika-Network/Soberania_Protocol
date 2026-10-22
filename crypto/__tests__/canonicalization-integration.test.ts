@@ -15,6 +15,7 @@ import {
   signPayload,
   verifyPayloadSignature,
   createRuntimeAuthority,
+  createTrustedKeySet,
 } from '../engine';
 import { canonicalizeJSON } from '../canonicalize';
 
@@ -70,7 +71,7 @@ describe('sign -> verify roundtrip', () => {
       timestamp: '2024-01-01T00:00:00.000Z',
     });
 
-    expect(verifyPayloadSignature(representativePayload, signature)).toBe(true);
+    expect(verifyPayloadSignature(representativePayload, signature, createTrustedKeySet([identity]))).toBe(true);
   });
 
   it('fails verification when the payload is mutated after signing', () => {
@@ -82,7 +83,7 @@ describe('sign -> verify roundtrip', () => {
 
     const mutatedPayload = { ...representativePayload, amount: 999 };
 
-    expect(verifyPayloadSignature(mutatedPayload, signature)).toBe(false);
+    expect(verifyPayloadSignature(mutatedPayload, signature, createTrustedKeySet([identity]))).toBe(false);
   });
 
   it('fails verification when the signature bytes are tampered with', () => {
@@ -96,7 +97,7 @@ describe('sign -> verify roundtrip', () => {
     buffer[0] = buffer[0] ^ 0xff;
     const tampered = { ...signature, signature: buffer.toString('base64url') };
 
-    expect(verifyPayloadSignature(representativePayload, tampered)).toBe(false);
+    expect(verifyPayloadSignature(representativePayload, tampered, createTrustedKeySet([identity]))).toBe(false);
   });
 
   it('fails verification when reordering keys does not change the payload but payloadHash was tampered with', () => {
@@ -108,7 +109,7 @@ describe('sign -> verify roundtrip', () => {
 
     const tampered = { ...signature, payloadHash: `${signature.payloadHash.slice(0, -1)}0` };
 
-    expect(verifyPayloadSignature(representativePayload, tampered)).toBe(false);
+    expect(verifyPayloadSignature(representativePayload, tampered, createTrustedKeySet([identity]))).toBe(false);
   });
 });
 

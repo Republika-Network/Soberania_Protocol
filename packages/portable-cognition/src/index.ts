@@ -1,5 +1,6 @@
 import { AuditContinuity, CognitionTopology, GovernanceSnapshot, PortableCognitionIntegrity, PortableCognitionPackage, SignedAuditEvent, SignedAuthorizationDecision, SignedConsentGrant } from "@aoc-runtime/shared-types";
 import { stableHash, verifyPayloadSignature } from "@aoc-runtime/crypto";
+import type { TrustedKeyResolver } from "@aoc-runtime/crypto";
 
 export interface ImportValidationResult {
   valid: boolean;
@@ -38,13 +39,16 @@ export function validatePortablePackage(pkg: PortableCognitionPackageWithIntegri
   return { valid: errors.length === 0, errors };
 }
 
+/** Verifies signatures only against `trustedKeys`, which must be configured independently of the verified objects. */
 export class IntegrityVerificationRuntime {
+  constructor(private readonly trustedKeys: TrustedKeyResolver) {}
+
   verifyAuthorizationDecision<T>(decision: SignedAuthorizationDecision<T>): boolean {
-    return verifyPayloadSignature({ decisionHash: decision.decisionHash, evaluationHash: decision.evaluationHash, decision: decision.decision }, decision.signature);
+    return verifyPayloadSignature({ decisionHash: decision.decisionHash, evaluationHash: decision.evaluationHash, decision: decision.decision }, decision.signature, this.trustedKeys);
   }
 
   verifyConsentGrant<T>(grant: SignedConsentGrant<T>): boolean {
-    return verifyPayloadSignature({ grantHash: grant.grantHash, grant: grant.grant }, grant.issuerSignature);
+    return verifyPayloadSignature({ grantHash: grant.grantHash, grant: grant.grant }, grant.issuerSignature, this.trustedKeys);
   }
 
   verifyAuditChain<T>(events: SignedAuditEvent<T>[]): boolean {
@@ -55,7 +59,7 @@ export class IntegrityVerificationRuntime {
       if (event.previousEventHash !== previousHash) return false;
       const computedHash = stableHash({ chainId: event.chainId, chainPosition: event.chainPosition, previousEventHash: event.previousEventHash, event: event.event });
       if (computedHash !== event.eventHash) return false;
-      return verifyPayloadSignature({ eventHash: event.eventHash, event: event.event }, event.signature);
+      return verifyPayloadSignature({ eventHash: event.eventHash, event: event.event }, event.signature, this.trustedKeys);
     });
   }
 

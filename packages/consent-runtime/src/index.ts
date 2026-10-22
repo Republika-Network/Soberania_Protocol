@@ -1,6 +1,7 @@
 import { CapabilityRef, ConsentGrant, ConsentDecisionReason, ContractEvaluationEnvelope, GovernanceSignature, SignedConsentGrant } from "@aoc-runtime/shared-types";
 import { ConsentProvider } from "@aoc-runtime/provider-interfaces";
 import { signPayload, stableHash, verifyPayloadSignature } from "@aoc-runtime/crypto";
+import type { TrustedKeyResolver } from "@aoc-runtime/crypto";
 
 export interface ConsentQuery {
   actorId: string;
@@ -58,11 +59,17 @@ export class ConsentRuntime {
     return { grant, grantHash, issuerSignature };
   }
 
-  verifySignedGrant(signedGrant: SignedConsentGrant<ConsentGrant>): boolean {
+  /**
+   * Verifies every signature on `signedGrant` against keys from `trustedKeys`
+   * (configured independently of the grant). A signer whose key is not in
+   * `trustedKeys`, or whose claimed identity differs from the configured one,
+   * fails verification.
+   */
+  verifySignedGrant(signedGrant: SignedConsentGrant<ConsentGrant>, trustedKeys: TrustedKeyResolver): boolean {
     if (stableHash(signedGrant.grant) !== signedGrant.grantHash) return false;
-    if (!verifyPayloadSignature({ grantHash: signedGrant.grantHash, grant: signedGrant.grant }, signedGrant.issuerSignature)) return false;
-    if (signedGrant.delegatedSignature && !verifyPayloadSignature({ grantHash: signedGrant.grantHash, grant: signedGrant.grant, delegated: true }, signedGrant.delegatedSignature)) return false;
-    if (signedGrant.revocationSignature && !verifyPayloadSignature({ grantHash: signedGrant.grantHash, grant: signedGrant.grant, revokedAt: signedGrant.grant.revokedAt }, signedGrant.revocationSignature)) return false;
+    if (!verifyPayloadSignature({ grantHash: signedGrant.grantHash, grant: signedGrant.grant }, signedGrant.issuerSignature, trustedKeys)) return false;
+    if (signedGrant.delegatedSignature && !verifyPayloadSignature({ grantHash: signedGrant.grantHash, grant: signedGrant.grant, delegated: true }, signedGrant.delegatedSignature, trustedKeys)) return false;
+    if (signedGrant.revocationSignature && !verifyPayloadSignature({ grantHash: signedGrant.grantHash, grant: signedGrant.grant, revokedAt: signedGrant.grant.revokedAt }, signedGrant.revocationSignature, trustedKeys)) return false;
     return true;
   }
 }

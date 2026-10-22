@@ -3,7 +3,7 @@ import { CapabilityRuntime } from "@aoc-runtime/capability-runtime";
 import { ConsentRuntime } from "@aoc-runtime/consent-runtime";
 import { GovernanceRuntime } from "@aoc-runtime/governance-runtime";
 import { ActorRef, AuthorizationDecisionEnvelope, AuthorizationFailedStage, GovernanceScope, NamespaceRef, GovernanceSignature, TrustBoundaryScope } from "@aoc-runtime/shared-types";
-import { TrustRegistryRuntime } from "@aoc-runtime/trust-registry-runtime";
+import { FederatedAuthorityClaims, FederatedAuthorityVerifier, VerifiedFederatedAuthority } from "@aoc-runtime/trust-registry-runtime";
 
 export type PolicyValue = string | number | boolean | null | string[] | number[] | boolean[];
 
@@ -185,9 +185,23 @@ export interface PolicyRuntimeContext {
   at?: string;
 }
 
+/**
+ * A federated authority's signed assertion for this request. The signature
+ * must cover the request's actor, action, resource, scope and namespace
+ * together with `claims` (see `buildFederatedAuthorityPayload`).
+ *
+ * - Any value other than `undefined`, including `null`, counts as supplied and
+ *   must verify; anything that does not is denied (fails closed).
+ * - When it is supplied, `AuthorizationInput.at`, if set, must be within the
+ *   verifier's clock skew of its clock, or the request is denied.
+ * - Verification consumes the assertion's nonce before policy, governance,
+ *   capability and consent are evaluated; a denial by any of them does not
+ *   restore it (see `FederatedAuthorityVerifier`).
+ */
 export interface FederatedAuthorityInput {
+  claims: FederatedAuthorityClaims;
   signature: GovernanceSignature;
-  scope?: TrustBoundaryScope;
+  scope: TrustBoundaryScope;
   provenance?: Record<string, unknown>;
 }
 
@@ -367,11 +381,52 @@ export class AuthorizationRuntime {
     private readonly capability: CapabilityRuntime,
     private readonly consent: ConsentRuntime,
     private readonly audit: AuditRuntime,
-    private readonly trustRegistry?: TrustRegistryRuntime
+    private readonly federatedAuthorityVerifier?: FederatedAuthorityVerifier
   ) {}
 
   async evaluate(input: AuthorizationInput): Promise<AuthorizationDecision> {
-    const policy = this.policyEngine.evaluate(input.policies ?? [], input.policyFragments ?? [], input);
+    // A supplied federated authority is verified before anything reads it, and is
+    // either accepted or the request is denied. Acceptance consumes its nonce,
+    // which a later denial below does not restore.
+    let verifiedAuthority: VerifiedFederatedAuthority | undefined;
+    if (input.federatedAuthority !== undefined) {
+      if (!this.federatedAuthorityVerifier) {
+        return this.audit.finalizeDecision({
+          decision: "deny", allowed: false, failedStage: "governance", obligations: [],
+          reasoningChain: ["Federated authority supplied but no federated authority verifier is configured."],
+          provenance: {},
+          explainability: {}
+        });
+      }
+      const federated = input.federatedAuthority;
+      const trust = await this.federatedAuthorityVerifier.verify(
+        {
+          actor: { actorId: input.actor.actorId, actorType: input.actor.actorType, organizationId: input.actor.organizationId },
+          ...(input.machineActor === undefined ? {} : { machineActorId: input.machineActor.actorId }),
+          action: input.action,
+          resource: input.resource,
+          scopeId: input.scope.scopeId,
+          namespace: input.namespace,
+          trustScope: federated.scope
+        },
+        { claims: federated.claims, signature: federated.signature },
+        input.at === undefined ? {} : { requestedAt: input.at }
+      );
+      if (!trust.trusted || !trust.authority) {
+        return this.audit.finalizeDecision({
+          decision: "deny", allowed: false, failedStage: "governance", obligations: [],
+          reasoningChain: ["Federated trust registry denied authority provenance."],
+          provenance: { rejectedAuthorityPath: trust.rejectedAuthorityPath, revokedIntermediaries: trust.revokedIntermediaries },
+          explainability: { trust }
+        });
+      }
+      verifiedAuthority = trust.authority;
+    }
+
+    // Policies see only the authenticated view of a federated authority, never the
+    // caller's unsigned envelope fields (provenance, signedAt and the like).
+    const policyContext = input.federatedAuthority === undefined ? input : { ...input, federatedAuthority: verifiedAuthority };
+    const policy = this.policyEngine.evaluate(input.policies ?? [], input.policyFragments ?? [], policyContext);
     if (policy.decision === "deny") {
       return this.audit.finalizeDecision({
         decision: "deny", allowed: false, failedStage: "policy", obligations: policy.obligations,
@@ -379,23 +434,6 @@ export class AuthorizationRuntime {
         provenance: { policySource: policy.matchedConditions, inheritedPolicySources: policy.inheritedPolicySources },
         explainability: { policy }
       });
-    }
-
-
-    if (input.federatedAuthority && this.trustRegistry) {
-      const trust = this.trustRegistry.evaluateSignatureTrust(
-        input.federatedAuthority.signature,
-        input.federatedAuthority.scope,
-        input.at
-      );
-      if (!trust.trusted) {
-        return this.audit.finalizeDecision({
-          decision: "deny", allowed: false, failedStage: "governance", obligations: policy.obligations,
-          reasoningChain: ["Federated trust registry denied authority provenance."],
-          provenance: { rejectedAuthorityPath: trust.rejectedAuthorityPath, revokedIntermediaries: trust.revokedIntermediaries },
-          explainability: { policy, trust }
-        });
-      }
     }
 
     const governance = await this.governance.evaluate(input, `action:${input.action}`);

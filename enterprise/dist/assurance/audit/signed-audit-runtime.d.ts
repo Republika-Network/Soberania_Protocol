@@ -1,4 +1,5 @@
 import type { AuditEvent, GovernanceSignature, SignedAuditEvent } from '@aoc-runtime/shared-types';
+import type { TrustedKeyResolver } from '@aoc-runtime/crypto';
 import type { ActorRef, NamespaceRef } from '@aoc-runtime/shared-types';
 export interface DecisionExplanation {
     decisionId: string;
@@ -41,7 +42,8 @@ export interface RuntimeDecisionEnvelope {
 export declare class AuditRuntime {
     finalizeDecision<T extends RuntimeDecisionEnvelope>(decision: T): T;
     createSignedEvent(event: AuditEvent, chainId: string, signature: GovernanceSignature, previous?: SignedAuditEvent<AuditEvent>): SignedAuditEvent<AuditEvent>;
-    verifyChain(events: SignedAuditEvent<AuditEvent>[]): boolean;
+    /** Verifies chain linkage and every event signature against `trustedKeys` (configured independently of the chain). */
+    verifyChain(events: SignedAuditEvent<AuditEvent>[], trustedKeys: TrustedKeyResolver): boolean;
 }
 export declare const signAuditEvent: (payload: {
     eventHash: string;

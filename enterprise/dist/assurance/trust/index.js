@@ -15,6 +15,8 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./canonical-trust-registry"), exports);
+__exportStar(require("./federated-authority"), exports);
 __exportStar(require("./federated-trust-registry"), exports);
 __exportStar(require("./identity-trust-service"), exports);
+__exportStar(require("./timestamps"), exports);
 __exportStar(require("./types"), exports);

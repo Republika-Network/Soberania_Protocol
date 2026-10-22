@@ -1,5 +1,6 @@
 import type { AuditEvent, GovernanceSignature, SignedAuditEvent } from '@aoc-runtime/shared-types';
 import { signPayload, stableHash, verifyPayloadSignature } from '@aoc-runtime/crypto';
+import type { TrustedKeyResolver } from '@aoc-runtime/crypto';
 import type { ActorRef, NamespaceRef } from '@aoc-runtime/shared-types';
 
 export interface DecisionExplanation {
@@ -66,14 +67,15 @@ export class AuditRuntime {
     return { event, eventHash, previousEventHash, chainPosition, chainId, signature };
   }
 
-  verifyChain(events: SignedAuditEvent<AuditEvent>[]): boolean {
+  /** Verifies chain linkage and every event signature against `trustedKeys` (configured independently of the chain). */
+  verifyChain(events: SignedAuditEvent<AuditEvent>[], trustedKeys: TrustedKeyResolver): boolean {
     for (let i = 0; i < events.length; i += 1) {
       const current = events[i];
       const expectedPrev = i === 0 ? undefined : events[i - 1].eventHash;
       if (current.previousEventHash !== expectedPrev || current.chainPosition !== i) return false;
       const hash = stableHash({ chainId: current.chainId, chainPosition: current.chainPosition, previousEventHash: current.previousEventHash, event: current.event });
       if (hash !== current.eventHash) return false;
-      if (!verifyPayloadSignature({ eventHash: current.eventHash, event: current.event }, current.signature)) return false;
+      if (!verifyPayloadSignature({ eventHash: current.eventHash, event: current.event }, current.signature, trustedKeys)) return false;
     }
     return true;
   }

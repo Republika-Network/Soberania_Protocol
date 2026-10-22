@@ -20,7 +20,8 @@ class AuditRuntime {
         const eventHash = (0, crypto_1.stableHash)({ chainId, chainPosition, previousEventHash, event });
         return { event, eventHash, previousEventHash, chainPosition, chainId, signature };
     }
-    verifyChain(events) {
+    /** Verifies chain linkage and every event signature against `trustedKeys` (configured independently of the chain). */
+    verifyChain(events, trustedKeys) {
         for (let i = 0; i < events.length; i += 1) {
             const current = events[i];
             const expectedPrev = i === 0 ? undefined : events[i - 1].eventHash;
@@ -29,7 +30,7 @@ class AuditRuntime {
             const hash = (0, crypto_1.stableHash)({ chainId: current.chainId, chainPosition: current.chainPosition, previousEventHash: current.previousEventHash, event: current.event });
             if (hash !== current.eventHash)
                 return false;
-            if (!(0, crypto_1.verifyPayloadSignature)({ eventHash: current.eventHash, event: current.event }, current.signature))
+            if (!(0, crypto_1.verifyPayloadSignature)({ eventHash: current.eventHash, event: current.event }, current.signature, trustedKeys))
                 return false;
         }
         return true;

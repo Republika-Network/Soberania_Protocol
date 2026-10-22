@@ -1,5 +1,6 @@
 import { CapabilityRef, ConsentGrant, ConsentDecisionReason, ContractEvaluationEnvelope, GovernanceSignature, SignedConsentGrant } from "@aoc-runtime/shared-types";
 import { ConsentProvider } from "@aoc-runtime/provider-interfaces";
+import type { TrustedKeyResolver } from "@aoc-runtime/crypto";
 export interface ConsentQuery {
     actorId: string;
     capability: CapabilityRef;
@@ -18,6 +19,12 @@ export declare class ConsentRuntime {
     constructor(provider: ConsentProvider);
     evaluate(query: ConsentQuery): Promise<ConsentDecision>;
     signGrant(grant: ConsentGrant, privateKey: string, signer: GovernanceSignature["signer"], runtimeSource: string): SignedConsentGrant<ConsentGrant>;
-    verifySignedGrant(signedGrant: SignedConsentGrant<ConsentGrant>): boolean;
+    /**
+     * Verifies every signature on `signedGrant` against keys from `trustedKeys`
+     * (configured independently of the grant). A signer whose key is not in
+     * `trustedKeys`, or whose claimed identity differs from the configured one,
+     * fails verification.
+     */
+    verifySignedGrant(signedGrant: SignedConsentGrant<ConsentGrant>, trustedKeys: TrustedKeyResolver): boolean;
 }
 //# sourceMappingURL=index.d.ts.map

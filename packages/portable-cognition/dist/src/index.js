@@ -39,12 +39,16 @@ function validatePortablePackage(pkg) {
     }
     return { valid: errors.length === 0, errors };
 }
+/** Verifies signatures only against `trustedKeys`, which must be configured independently of the verified objects. */
 class IntegrityVerificationRuntime {
+    constructor(trustedKeys) {
+        this.trustedKeys = trustedKeys;
+    }
     verifyAuthorizationDecision(decision) {
-        return (0, crypto_1.verifyPayloadSignature)({ decisionHash: decision.decisionHash, evaluationHash: decision.evaluationHash, decision: decision.decision }, decision.signature);
+        return (0, crypto_1.verifyPayloadSignature)({ decisionHash: decision.decisionHash, evaluationHash: decision.evaluationHash, decision: decision.decision }, decision.signature, this.trustedKeys);
     }
     verifyConsentGrant(grant) {
-        return (0, crypto_1.verifyPayloadSignature)({ grantHash: grant.grantHash, grant: grant.grant }, grant.issuerSignature);
+        return (0, crypto_1.verifyPayloadSignature)({ grantHash: grant.grantHash, grant: grant.grant }, grant.issuerSignature, this.trustedKeys);
     }
     verifyAuditChain(events) {
         return events.every((event, index) => {
@@ -57,7 +61,7 @@ class IntegrityVerificationRuntime {
             const computedHash = (0, crypto_1.stableHash)({ chainId: event.chainId, chainPosition: event.chainPosition, previousEventHash: event.previousEventHash, event: event.event });
             if (computedHash !== event.eventHash)
                 return false;
-            return (0, crypto_1.verifyPayloadSignature)({ eventHash: event.eventHash, event: event.event }, event.signature);
+            return (0, crypto_1.verifyPayloadSignature)({ eventHash: event.eventHash, event: event.event }, event.signature, this.trustedKeys);
         });
     }
     verifyExportIntegrity(pkg) {

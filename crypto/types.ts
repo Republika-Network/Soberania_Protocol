@@ -15,6 +15,28 @@ export interface RuntimeAuthorityIdentity {
   keyId: string;
 }
 
+/**
+ * A signing key a verifier trusts because it was configured independently of
+ * any signed object (a trust registry, a pinned key set) — never because a
+ * signature envelope carried it.
+ */
+export interface TrustedSigningKey {
+  keyId: string;
+  publicKey: string;
+  authorityId: string;
+  issuerId: string;
+  runtimeId: string;
+}
+
+export interface TrustedKeyResolver {
+  /**
+   * The trusted key registered under `keyId` and usable now, by the resolver's
+   * own clock, or `undefined` when there is none. The caller never supplies
+   * the time.
+   */
+  resolveTrustedKey(keyId: string): TrustedSigningKey | undefined;
+}
+
 export interface GovernanceSignature {
   algorithm: 'ed25519';
   keyId: string;

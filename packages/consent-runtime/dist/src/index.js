@@ -46,14 +46,20 @@ class ConsentRuntime {
         const issuerSignature = (0, crypto_1.signPayload)({ grantHash, grant }, privateKey, signer, { runtimeSource, timestamp: new Date().toISOString() });
         return { grant, grantHash, issuerSignature };
     }
-    verifySignedGrant(signedGrant) {
+    /**
+     * Verifies every signature on `signedGrant` against keys from `trustedKeys`
+     * (configured independently of the grant). A signer whose key is not in
+     * `trustedKeys`, or whose claimed identity differs from the configured one,
+     * fails verification.
+     */
+    verifySignedGrant(signedGrant, trustedKeys) {
         if ((0, crypto_1.stableHash)(signedGrant.grant) !== signedGrant.grantHash)
             return false;
-        if (!(0, crypto_1.verifyPayloadSignature)({ grantHash: signedGrant.grantHash, grant: signedGrant.grant }, signedGrant.issuerSignature))
+        if (!(0, crypto_1.verifyPayloadSignature)({ grantHash: signedGrant.grantHash, grant: signedGrant.grant }, signedGrant.issuerSignature, trustedKeys))
             return false;
-        if (signedGrant.delegatedSignature && !(0, crypto_1.verifyPayloadSignature)({ grantHash: signedGrant.grantHash, grant: signedGrant.grant, delegated: true }, signedGrant.delegatedSignature))
+        if (signedGrant.delegatedSignature && !(0, crypto_1.verifyPayloadSignature)({ grantHash: signedGrant.grantHash, grant: signedGrant.grant, delegated: true }, signedGrant.delegatedSignature, trustedKeys))
             return false;
-        if (signedGrant.revocationSignature && !(0, crypto_1.verifyPayloadSignature)({ grantHash: signedGrant.grantHash, grant: signedGrant.grant, revokedAt: signedGrant.grant.revokedAt }, signedGrant.revocationSignature))
+        if (signedGrant.revocationSignature && !(0, crypto_1.verifyPayloadSignature)({ grantHash: signedGrant.grantHash, grant: signedGrant.grant, revokedAt: signedGrant.grant.revokedAt }, signedGrant.revocationSignature, trustedKeys))
             return false;
         return true;
     }
