@@ -651,6 +651,10 @@ every tar entry is `0644`. The repository's consumer fixtures install the artifa
 | **Release readiness** | An internal candidate for validation only. Not a release, not handed over. |
 | **Production security readiness** | **Not established.** See below. |
 
+*Reconciled 2026-10-22 (§12):* public source availability is now established — `fd705f68…` is
+reachable through pull request #393 and the tag `source/aoc-protocol-0.2.0-rc.3`. The table above is
+kept as written.
+
 **Correction to §10, recorded here rather than by rewriting it:** the `0.2.0-rc.2` evidence names
 source commit `9f495f3c…`, which was never published. Its `packages/protocol` tree (`eaacf283…`) is
 what was carried forward, and a pack of that tree reproduces `sha256:9f81f112…4104`. The `0.2.0-rc.2`
@@ -662,3 +666,52 @@ It closes SOBE-SEC-01, including N1, only. Findings P0-2, P0-3 and R3-4a from th
 review remain open and are tracked privately, together with related follow-ups; the authorization
 layer is **not** production-safe as a whole. No consumer has been moved to `0.2.0-rc.2` or
 `0.2.0-rc.3`, and repinning each is a separate, separately authorized increment.
+
+## 12. SOBE-DOC-01 — post-disclosure reconciliation for `0.2.0-rc.3` (2026-10-22)
+
+This section records what became true after §11 was written. Earlier sections, and every file under
+`docs/release/evidence/`, are left as written: they are accurate for the date they carry.
+
+### Public disclosure
+
+| | |
+| --- | --- |
+| **Source commit** | `fd705f689e04781748e308368a10e52ae32af079` (`packages/protocol` tree `12a41cb095ba75c30733885894a019f88e44cd53`), the commit the `0.2.0-rc.3` evidence names |
+| **Pull request** | #393, head `0fc9dd46b4556968956f57e6ddf5083ee732b64c` (the evidence commit, whose parent is the source commit). `refs/pull/393/head` keeps both commits retrievable. |
+| **Security merge** | Squash-merged to `main` as `3cb635dbce421c3a9a31812753d5c294afa0b21c` (2026-10-22). Its tree equals the pull request head's, so `packages/protocol` is identical to the source commit's. |
+| **Source tag** | `source/aoc-protocol-0.2.0-rc.3`: an annotated, **unsigned** source-provenance tag on `fd705f68…`, protected by a repository tag ruleset. It is not a release tag. Verify it by the commit SHA and the tarball checksum. |
+| **Artifact** | `aoc-protocol-0.2.0-rc.3.tgz`, `sha256:3d17beff5a0538172f3d888184459511c44540332ccde51a30da32afa1b358f4`. A fresh clone of the public repository reproduces it byte-for-byte from both `fd705f68…` and `3cb635db…` under Node `v22.23.1` and `v20.20.2`. |
+| **Advisory** | Repository security advisory GHSA-c624-x7cg-8cf3, published 2026-10-22: two related issuer-attribution flaws, affected `>= 0.2.0-rc.0, < 0.2.0-rc.3`, patched `0.2.0-rc.3`. No CVE was requested. |
+
+The founder authorized this disclosure in writing on 2026-10-21: the source tag, the public pull
+request and its squash-merge with a one-time use of the administrator bypass of the approval rule,
+and the advisory publication. The merge proceeded under a written waiver of independent human
+security review, approved in writing that day; the formal waiver document's signature fields have
+not been completed. The reviews performed were fresh-context, AI-assisted adversarial reviews, not
+independent third-party human reviews.
+
+### Status, unchanged by disclosure
+
+`0.2.0-rc.3` is an internal release candidate. It is **not published** to npm or any other
+registry, not distributed, not handed over to any consumer, and not a declaration of production
+readiness. `"private": true` still holds. Findings P0-2, P0-3 and R3-4a remain open and tracked
+privately; the authorization layer is not production-safe as a whole.
+
+### Observed consumer state
+
+§9 recorded Live Data Rail, Frontera and PMFreak as pinned to `0.2.0-rc.0` when `0.2.0-rc.1` was
+cut (2026-08-25). An inspection on 2026-10-21 of each repository's default branch found all three
+pinned to `0.2.0-rc.1` by checksum (`sha256:b0d6ee6f…`; Frontera as a development dependency). For
+Live Data Rail and PMFreak the inspected branch matched the remote default branch; for Frontera it
+was a local clone five commits behind its remote default branch, none of which changed its use of
+this package. Other branches, forks, built artifacts and deployments were not inspected, and no
+claim is made about them. No consumer pins `0.2.0-rc.2` or `0.2.0-rc.3`; repinning remains a
+separate, separately authorized increment for each repository.
+
+### CI repair
+
+Changeset Validation and RC Validation had failed on every push to `main` since at least the
+`0.2.0-rc.1` merge, in a setup step that force-updated the checked-out `main` branch, before any
+validation ran. Pull request #394 fixed the step and added a regression test; it was merged as
+`6472af1af5eda93d9424dfe6a2b009335df7636c`, after which both workflows passed on `main`, including
+`protocol:rc:check`. Package source, evidence and versions were not touched.

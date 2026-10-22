@@ -9,6 +9,10 @@ of those changes, not a second contract change. (Builds after the Apache-2.0 rel
 hash differently — see the identity note in
 [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md).)
 
+*Reconciled 2026-10-22:* consumers have since adopted internal `0.2.0-rc` tarballs as well — see
+[`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md) §12 for the consumer state
+observed on 2026-10-21. None of them is a published `0.2.0`.
+
 **There are no breaking changes.** 0.1.x consumer code compiles unchanged against the proposed
 0.2.x surface. Everything below is either additive or a clarification of what was always true.
 

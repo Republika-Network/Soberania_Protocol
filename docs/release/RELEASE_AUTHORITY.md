@@ -107,6 +107,13 @@ evidence locally and committing it, naming source commit `fd705f689e04781748e308
 That commit is verified locally but is not yet publicly retrievable; how it will be preserved is
 decided separately (see [`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md) §11).
 
+*Reconciled by SOBE-DOC-01 (2026-10-22):* the founder separately authorized the disclosure in
+writing on 2026-10-21. The commit is now public through pull request #393 and the unsigned source
+tag `source/aoc-protocol-0.2.0-rc.3`, the fix was merged as `3cb635db…`, and advisory
+GHSA-c624-x7cg-8cf3 was published; see
+[`RELEASE_CANDIDATE_READINESS.md`](RELEASE_CANDIDATE_READINESS.md) §12. Registry publication, a
+release tag, a CVE request, distribution and repinning remain unauthorized.
+
 **Why:** `0.2.0-rc.2` carries a further SOBE-SEC-01 defect (N1). Manifest and claim verification let
 a caller-supplied issuer replace the issuer the signed content names as the identity an issuer
 binding was verified for. The issuer supplied by a caller is now an expected issuer that can only
