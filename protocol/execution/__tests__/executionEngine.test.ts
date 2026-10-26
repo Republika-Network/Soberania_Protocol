@@ -1,27 +1,34 @@
-import { buildConsentObject } from '../../../consent';
+import { buildConsentObject as buildUnsignedConsentObject } from '../../../consent';
 import { mintCapability } from '../../capability';
 import { ENFORCEMENT_REASON_CODES } from '../../enforcement';
 import { authorizeExecution } from '..';
 import { EXECUTION_REASON_CODES } from '../execution-types';
 import { createStaticRevocationCheck, verifiedNotRevokedStatus } from '../../revocation';
+import { testSubjectSigner, signTestConsent } from '../../../tests/helpers/consentSigning';
 
-const SUBJECT = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK';
-const GRANTEE = 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH';
+// Consents in these tests are signed by their subject; unsigned consents authorize nothing.
+const buildConsentObject: typeof buildUnsignedConsentObject = (...args) =>
+  signTestConsent(buildUnsignedConsentObject(...args));
+
+const SUBJECT = testSubjectSigner('subject').did;
+const GRANTEE = testSubjectSigner('grantee').did;
 const REF_A = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
 const notRevoked = createStaticRevocationCheck(
   verifiedNotRevokedStatus({ subjectId: 'fixture', subjectType: 'capability_grant' })
 );
 
-function buildCapability() {
-  const consent = buildConsentObject(SUBJECT, GRANTEE, 'grant', [{ type: 'content', ref: REF_A }], ['read'], {
+function buildConsent() {
+  return buildConsentObject(SUBJECT, GRANTEE, 'grant', [{ type: 'content', ref: REF_A }], ['read'], {
     now: new Date('2026-01-01T00:00:00Z'),
     expires_at: '2026-12-31T00:00:00Z',
     marketMakerId: 'mm-01',
   });
+}
 
+function buildCapability() {
   return mintCapability({
-    consent,
+    consent: buildConsent(),
     requested_scope: [{ type: 'content', ref: REF_A }],
     requested_permissions: ['read'],
     issued_at: '2026-02-01T00:00:00Z',
@@ -35,6 +42,7 @@ describe('protocol execution authorization handoff', () => {
   it('execution request válido + enforcement allow => authorized', () => {
     const result = authorizeExecution(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -70,6 +78,7 @@ describe('protocol execution authorization handoff', () => {
   it('execution request inválido => rejected', () => {
     const result = authorizeExecution(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [],
         requested_permissions: ['read'],
@@ -88,6 +97,7 @@ describe('protocol execution authorization handoff', () => {
   it('capability inválido => rejected', () => {
     const result = authorizeExecution(
       {
+        consent: buildConsent(),
         capability: {},
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -107,6 +117,7 @@ describe('protocol execution authorization handoff', () => {
   it('enforcement expired => rejected', () => {
     const result = authorizeExecution(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -123,6 +134,7 @@ describe('protocol execution authorization handoff', () => {
   it('enforcement permission deny => rejected', () => {
     const result = authorizeExecution(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['write'],
@@ -139,6 +151,7 @@ describe('protocol execution authorization handoff', () => {
   it('enforcement subject mismatch => rejected', () => {
     const result = authorizeExecution(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -156,6 +169,7 @@ describe('protocol execution authorization handoff', () => {
   it('execution_target inválido => rejected', () => {
     const result = authorizeExecution(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -172,6 +186,7 @@ describe('protocol execution authorization handoff', () => {
   it('payload inválido => rejected', () => {
     const result = authorizeExecution(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -189,6 +204,7 @@ describe('protocol execution authorization handoff', () => {
   it('authorization result incluye execution_contract cuando authorized', () => {
     const result = authorizeExecution(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -207,6 +223,7 @@ describe('protocol execution authorization handoff', () => {
   it('authorization result NO incluye execution_contract válido cuando rejected', () => {
     const result = authorizeExecution(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['write'],
@@ -233,6 +250,7 @@ describe('protocol execution authorization handoff', () => {
 
     const result = authorizeExecution(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],

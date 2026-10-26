@@ -399,14 +399,18 @@ describe('AuthorizationRuntime federated authority gate', () => {
 });
 
 describe('Consent grant and portable integrity verification', () => {
+  // A grant's subject and delegate sign with the trusted keys registered under their own actor ids.
+  const alice = createRuntimeAuthority('runtime:alice', 'actor:alice', 'authority:alice');
+  const bob = createRuntimeAuthority('runtime:bob', 'actor:bob', 'authority:bob');
   const grant = { grantId: 'grant:1', subjectActorId: 'actor:alice', delegateActorId: 'actor:bob', capability: { capabilityId: 'cap:1' } as never, issuedAt: T0 };
   const grantHash = stableHash(grant);
-  const trustedKeys = createTrustedKeySet([member.identity]);
-  const genuine = { grant, grantHash, issuerSignature: sign(member, { grantHash, grant }) };
-  const forged = { grant, grantHash, issuerSignature: relabelled(member, { grantHash, grant }) };
-  const consent = new ConsentRuntime({} as never);
+  const trustedKeys = createTrustedKeySet([alice.identity, bob.identity, member.identity]);
+  const issued = { grant, grantHash, issuerSignature: sign(alice, { grantHash, grant }) };
+  const genuine = { ...issued, delegatedSignature: sign(bob, { grantHash, grant, delegated: true }) };
+  const forged = { ...genuine, issuerSignature: relabelled(alice, { grantHash, grant }) };
+  const consent = new ConsentRuntime({} as never, { trustedKeys, resourceOwnership: { ownerOf: async () => 'actor:alice' } });
 
-  it('accepts a grant signed by a trusted key', () => {
+  it('accepts a grant signed by its subject and countersigned by its delegate', () => {
     expect(consent.verifySignedGrant(genuine, trustedKeys)).toBe(true);
     expect(new IntegrityVerificationRuntime(trustedKeys).verifyConsentGrant(genuine)).toBe(true);
   });
@@ -414,18 +418,26 @@ describe('Consent grant and portable integrity verification', () => {
   it('rejects a grant signed by another key under a trusted identity, or by an unconfigured key', () => {
     expect(consent.verifySignedGrant(forged, trustedKeys)).toBe(false);
     expect(new IntegrityVerificationRuntime(trustedKeys).verifyConsentGrant(forged)).toBe(false);
-    const own = { grant, grantHash, issuerSignature: sign(outsider, { grantHash, grant }) };
+    const own = { ...genuine, issuerSignature: sign(outsider, { grantHash, grant }) };
     expect(consent.verifySignedGrant(own, trustedKeys)).toBe(false);
   });
 
-  it('rejects a grant whose delegated or revocation signature is not from a trusted key', () => {
-    expect(consent.verifySignedGrant({ ...genuine, delegatedSignature: relabelled(member, { grantHash, grant, delegated: true }) }, trustedKeys)).toBe(false);
-    expect(consent.verifySignedGrant({ ...genuine, delegatedSignature: sign(member, { grantHash, grant, delegated: true }) }, trustedKeys)).toBe(true);
+  it('rejects a grant signed by a trusted key that is not the grant subject', () => {
+    expect(consent.verifySignedGrant({ ...genuine, issuerSignature: sign(member, { grantHash, grant }) }, trustedKeys)).toBe(false);
+    expect(consent.verifySignedGrant({ ...genuine, issuerSignature: sign(bob, { grantHash, grant }) }, trustedKeys)).toBe(false);
+  });
+
+  it('requires the delegate signature, from the delegate, when the grant names a delegate', () => {
+    expect(consent.verifySignedGrant(issued, trustedKeys)).toBe(false);
+    expect(consent.verifySignedGrant({ ...issued, delegatedSignature: relabelled(bob, { grantHash, grant, delegated: true }) }, trustedKeys)).toBe(false);
+    expect(consent.verifySignedGrant({ ...issued, delegatedSignature: sign(alice, { grantHash, grant, delegated: true }) }, trustedKeys)).toBe(false);
+    expect(consent.verifySignedGrant({ ...issued, delegatedSignature: sign(member, { grantHash, grant, delegated: true }) }, trustedKeys)).toBe(false);
   });
 
   it('fails closed without trusted keys', () => {
     expect(consent.verifySignedGrant(genuine, undefined as never)).toBe(false);
     expect(new IntegrityVerificationRuntime(undefined as never).verifyConsentGrant(genuine)).toBe(false);
+    expect(() => new ConsentRuntime({} as never, undefined as never)).toThrow(/trusted keys/);
   });
 
   it('rejects a signed authorization decision from an untrusted key', () => {

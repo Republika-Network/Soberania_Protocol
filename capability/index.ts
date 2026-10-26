@@ -11,8 +11,13 @@ export { computeCapabilityHash } from './hash';
 export {
   revokeCapabilityToken,
   isRevoked,
-  resetRevocationRegistry
+  revokeConsent,
+  isConsentHashRevoked,
+  readRevocation
 } from './revocation';
+export type { RevocationReading } from './revocation';
+export { InMemoryRevocationRegistry } from './registries/InMemoryRevocationRegistry';
+export type { RevocationRegistry, ConsentRevocationRecord } from './registries/RevocationRegistry';
 export type {
   CapabilityTokenV1,
   MintCapabilityOptions,

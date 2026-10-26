@@ -133,7 +133,8 @@ export function interpretWithCapability(
       resource: { type: normalizedResource.type, ref: normalizedResource.ref },
       now: input.now,
       marketMakerRegistry: dependencies.marketMakerRegistry,
-      hooks: dependencies.hooks
+      hooks: dependencies.hooks,
+      registries: { revocationRegistry: dependencies.registries?.revocationRegistry }
     });
 
     if (!accessDecision.allowed) {

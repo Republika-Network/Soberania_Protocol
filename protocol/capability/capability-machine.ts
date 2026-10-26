@@ -7,7 +7,18 @@ function toScopeKey(entry: ScopeEntry): string {
   return `${entry.type}:${entry.ref}`;
 }
 
-export function evaluateCapabilityAccess(capabilityInput: unknown, request: CapabilityAccessRequest): boolean {
+/**
+ * Non-authoritative projection: does this capability object, taken at face value,
+ * cover the requested scope and permissions, and is it active?
+ *
+ * It never authorizes anything. It does not know the parent consent, so it
+ * cannot tell a minted capability from a fabricated one; `evaluateEnforcement`
+ * and `authorizeExecution` (protocol/enforcement, protocol/execution) are the
+ * decision paths, and they call this only after the consent binding and
+ * revocation checks have passed. Use it for previews, diagnostics and tests of
+ * scope arithmetic, not for access decisions.
+ */
+export function projectCapabilityScopeMatch(capabilityInput: unknown, request: CapabilityAccessRequest): boolean {
   const state = evaluateCapabilityState(capabilityInput, {
     now: request.now,
     checkRevocation: request.checkRevocation,

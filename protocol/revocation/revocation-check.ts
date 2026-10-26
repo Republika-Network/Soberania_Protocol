@@ -81,6 +81,29 @@ export function createRegistryRevocationCheck(
   };
 }
 
+/**
+ * The capability model's registry (capability/registries/RevocationRegistry) answers two
+ * subject types: `capability_grant` by capability_hash and `consent_grant` by consent_hash.
+ * Any other subject type is `unknown` (fail closed), as are thrown or non-boolean answers.
+ */
+export type CapabilityModelRevocationRegistry = {
+  isRevoked(capabilityHash: string): boolean;
+  isConsentRevoked(consentHash: string): boolean;
+};
+
+export function createCapabilityRevocationCheck(
+  registry: CapabilityModelRevocationRegistry,
+  opts?: { sourceVersion?: string; telemetry?: RevocationTelemetryHook }
+): RevocationCheckPort {
+  const capabilities = createRegistryRevocationCheck({ isRevoked: (id) => registry.isRevoked(id) }, opts);
+  const consents = createRegistryRevocationCheck({ isRevoked: (id) => registry.isConsentRevoked(id) }, opts);
+  return (subject) => {
+    if (subject.subjectType === 'capability_grant') return capabilities(subject);
+    if (subject.subjectType === 'consent_grant') return consents(subject);
+    return revocationLookupFailedStatus({ subjectId: subject.subjectId, subjectType: subject.subjectType });
+  };
+}
+
 /** Always returns `unknown`. Use as an explicit, visible default for call sites that have not
  * yet been wired to a real revocation source — never silently substitute "not revoked". */
 export const ALWAYS_UNKNOWN_REVOCATION_CHECK: RevocationCheckPort = ({ subjectId, subjectType }) =>

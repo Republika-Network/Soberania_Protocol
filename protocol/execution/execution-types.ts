@@ -36,6 +36,7 @@ export type ExecutionTarget = {
 
 export type ExecutionRequest = {
   capability: unknown;
+  consent: unknown;
   requested_scope: ScopeEntry[];
   requested_permissions: string[];
   subject?: string;
@@ -50,6 +51,7 @@ export type ExecutionRequest = {
 
 export type NormalizedExecutionRequest = {
   capability: unknown;
+  consent: unknown;
   requested_scope: ScopeEntry[];
   requested_permissions: string[];
   subject?: string;

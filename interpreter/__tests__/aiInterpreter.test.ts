@@ -1,18 +1,33 @@
 import { mintCapabilityToken } from '../../capability';
-import { buildConsentObject } from '../../consent';
+import { buildConsentObject as buildUnsignedConsentObject } from '../../consent';
 import { capabilityAccessReasonCodes } from '../../enforcement';
 import { InMemoryConsentUsageRegistry } from '../../protocol/capabilities';
 import { MarketMakerRegistry } from '../../shared/marketMakerRegistry';
-import { interpretWithCapability, runInterpreter } from '../aiInterpreter';
+import { interpretWithCapability as interpretWithCapabilityRaw, runInterpreter } from '../aiInterpreter';
+import { testSubjectSigner, signTestConsent } from '../../tests/helpers/consentSigning';
+import { InMemoryRevocationRegistry } from '../../capability/registries/InMemoryRevocationRegistry';
 
+// Every authorization path reads revocation from an injected registry; these
+// tests share one and pass it unless a test supplies its own.
+const revocationRegistry = new InMemoryRevocationRegistry();
+const interpretWithCapability: typeof interpretWithCapabilityRaw = (input, dependencies = {}) =>
+  interpretWithCapabilityRaw(input, { ...dependencies, registries: { revocationRegistry, ...dependencies.registries } });
+
+
+// Consents in these tests are signed by their subject; unsigned consents authorize nothing.
+const buildConsentObject: typeof buildUnsignedConsentObject = (...args) =>
+  signTestConsent(buildUnsignedConsentObject(...args));
+
+const SUBJECT = testSubjectSigner('subject').did;
+const GRANTEE = 'did:aoc:grantee456';
 const NOW = '2025-06-15T10:00:00Z';
 const EXPIRES_AT = '2025-06-15T10:05:00Z';
 const CONTENT_REF = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
 function buildRequest(overrides: Partial<Parameters<typeof interpretWithCapability>[0]> = {}) {
   const consent = buildConsentObject(
-    'did:aoc:subject123',
-    'did:aoc:grantee456',
+    SUBJECT,
+    GRANTEE,
     'grant',
     [{ type: 'content', ref: CONTENT_REF }],
     ['read'],
@@ -91,8 +106,8 @@ describe('interpretWithCapability', () => {
     const request = buildRequest({
       now: '2025-06-15T10:05:02Z',
       consent: buildConsentObject(
-        'did:aoc:subject123',
-        'did:aoc:grantee456',
+        SUBJECT,
+        GRANTEE,
         'grant',
         [{ type: 'content', ref: CONTENT_REF }],
         ['read'],
@@ -124,8 +139,8 @@ describe('interpretWithCapability', () => {
   it('denies when payment required but not paid', () => {
     const request = buildRequest({
       consent: buildConsentObject(
-        'did:aoc:subject123',
-        'did:aoc:grantee456',
+        SUBJECT,
+        GRANTEE,
         'grant',
         [{ type: 'content', ref: CONTENT_REF }],
         ['read'],
@@ -157,8 +172,8 @@ describe('interpretWithCapability', () => {
 
   it('executes AI when paid', () => {
     const pricedConsent = buildConsentObject(
-      'did:aoc:subject123',
-      'did:aoc:grantee456',
+      SUBJECT,
+      GRANTEE,
       'grant',
       [{ type: 'content', ref: CONTENT_REF }],
       ['read'],
@@ -236,8 +251,8 @@ describe('interpretWithCapability', () => {
       capability: buildRequest().capability
     });
     request.consent = buildConsentObject(
-      'did:aoc:subject123',
-      'did:aoc:grantee456',
+      SUBJECT,
+      GRANTEE,
       'grant',
       [{ type: 'content', ref: CONTENT_REF }],
       ['read'],

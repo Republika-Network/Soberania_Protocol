@@ -2,8 +2,8 @@
 import { authorizeExecution, type ExecutionAuthorizationResult } from '../../protocol/execution';
 import { evaluateEnforcement, type EnforcementDecision } from '../../protocol/enforcement';
 import { mintCapability, type ProtocolCapability } from '../../protocol/capability';
-import { isRevoked as isCapabilityTokenRevoked } from '../../capability';
-import { ALWAYS_UNKNOWN_REVOCATION_CHECK, createRegistryRevocationCheck, type RevocationCheckPort } from '../../protocol/revocation';
+import { InMemoryRevocationRegistry, type RevocationRegistry } from '../../capability';
+import { createCapabilityRevocationCheck } from '../../protocol/revocation';
 import { DataAccessService } from '../access/service';
 import type { DataAccessDecision, DataAccessRequestInput } from '../access/types';
 import { RuntimeAuditService, type ListAuditEventsInput, type RuntimeAuditEvent } from '../audit/service';
@@ -19,10 +19,12 @@ import type {
   RlusdWithdrawalRequest,
 } from '../trust/types';
 import type { ApiResponse, RuntimeEndpoint } from '../types/api-types';
+import { canActFor, type RuntimeCaller } from '../auth/apiKeys';
 import { InMemoryUsageService, isMeteredEndpoint } from '../usage';
 import { InMemoryMonetizationService, InMemoryPricingRegistry, type PricingRule } from '../monetization';
 import type { MeteredRuntimeEndpoint, UsageSummaryResult } from '../usage';
 import {
+  AccessGrantRevocationUnauthorizedError,
   ControlPlaneService,
   RevocationIdempotencyConflictError,
   type AccessRequest,
@@ -34,26 +36,14 @@ import { normalizePolicyDecision } from '../policy';
 import { normalizeReasonCode } from '../governance/reason-codes';
 
 /**
- * Canonical revocation check for the capability-token subsystem (see
- * docs/security/revocation/04-status-contract.md). This is the ONLY place a revocation
- * determination may be injected into `evaluateEnforcement`/`authorizeExecution` — it is resolved
- * server-side against the canonical registry, never accepted from client-supplied JSON (a
- * function cannot cross a JSON boundary, and a client-asserted "not revoked" would be
- * meaningless from a security standpoint).
+ * Revocation for `/enforcement/evaluate`, `/execution/authorize` and `/capability/mint` is
+ * resolved server-side from the core's revocation registry (see
+ * docs/security/revocation/04-status-contract.md): one registry answers both the
+ * `capability_grant` (token hash) and `consent_grant` (consent hash) subjects, so a consent its
+ * subject revoked denies every capability minted from it and blocks new mints. The check is
+ * built per core inside `executeRoute`; nothing is read from a process-global registry, and a
+ * client-supplied `checkConsentRevocation`/`isRevoked` field in the JSON is overwritten.
  */
-const capabilityRevocationCheck: RevocationCheckPort = createRegistryRevocationCheck({
-  isRevoked: (subjectId) => isCapabilityTokenRevoked(subjectId),
-});
-
-/**
- * No canonical consent-hash revocation registry exists in this codebase yet (see
- * docs/security/revocation/13-final-verdict.md — building one is next-sprint work). Until it
- * does, `/capability/mint` deliberately and explicitly cannot verify a parent consent's
- * revocation status, so it must always resolve to `unknown` and block — never silently allow
- * because the check was left unwired. This makes that fail-closed behavior an intentional,
- * tested design decision instead of an implicit side effect of an uncaught TypeError.
- */
-const consentRevocationCheck: RevocationCheckPort = ALWAYS_UNKNOWN_REVOCATION_CHECK;
 
 /**
  * ADR §13 / docs/security/revocation/08-billing-safety-override.md: security containment
@@ -78,6 +68,13 @@ export type RuntimeCore = {
   monetizationService: InMemoryMonetizationService;
   capabilityAuditService: InMemoryAuditService;
   controlPlaneService: ControlPlaneService;
+  /** Revocation authority for capabilities and consents. Single-process in the default core. */
+  revocationRegistry: RevocationRegistry;
+  /**
+   * The trusted clock every time-bound decision is made at. Callers never supply it: a `now`
+   * in a request body is refused. Tests and trusted embedders inject it here.
+   */
+  now: () => Date;
 };
 
 const DEFAULT_PRICING_RULES: PricingRule[] = [
@@ -100,7 +97,65 @@ const ROUTE_ERRORS = {
   executionError: 'EXECUTION_ERROR',
   routeNotFound: 'ROUTE_NOT_FOUND',
   protocolError: 'PROTOCOL_ERROR',
+  callerNotAuthorized: 'CALLER_NOT_AUTHORIZED',
 } as const;
+
+function field(payload: unknown, name: string): unknown {
+  return payload !== null && typeof payload === 'object' ? (payload as Record<string, unknown>)[name] : undefined;
+}
+
+/**
+ * Principals named in `payload` that the caller must be allowed to act for,
+ * per endpoint. Identities in the request body are claims; only the caller's
+ * API key record (its principals and roles) decides whom it may represent.
+ * `undefined` means the endpoint is restricted to admin callers.
+ */
+function requiredPrincipals(endpoint: RuntimeEndpoint, payload: unknown): unknown[] | undefined {
+  switch (endpoint) {
+    case '/enforcement/evaluate':
+    case '/execution/authorize':
+      return [field(payload, 'grantee')];
+    case '/capability/mint':
+      return [field(field(payload, 'consent'), 'subject')];
+    case '/access/request':
+      return [field(payload, 'requester_id')];
+    case '/access/requests':
+    case '/access/request/decision':
+      return [field(payload, 'subject_id')];
+    case '/access/grants/active': {
+      const named = [field(payload, 'subject_id'), field(payload, 'requester_id')].filter((value) => value !== undefined);
+      return named.length > 0 ? named : [undefined];
+    }
+    case '/access/grant/revoke':
+      // Identifiers named in the body must be the caller's own; authority over the grant itself is
+      // decided by ControlPlaneService against the stored grant's subject and requester.
+      return [field(payload, 'subject_id'), field(payload, 'requester_id')].filter((value) => value !== undefined);
+    case '/data/access':
+    case '/payout/execute':
+    case '/trust/verify':
+    case '/usage/summary':
+      return [field(payload, 'consumer_id')];
+    case '/audit/events': {
+      const named = [field(payload, 'subject_hash'), field(payload, 'consumer_id')].filter((value) => value !== undefined);
+      return named.length > 0 ? named : [undefined];
+    }
+    // Issuer authentication for these is a signature checked by the trust service.
+    case '/trust/credential/register':
+    case '/trust/consent/grant':
+      return [];
+    default:
+      return undefined;
+  }
+}
+
+function authorizeCaller(endpoint: RuntimeEndpoint, payload: unknown, caller: RuntimeCaller | undefined): ApiResponse<never> | undefined {
+  if (caller === undefined) {
+    return failure(ROUTE_ERRORS.callerNotAuthorized, 'An authenticated caller is required.');
+  }
+  const principals = requiredPrincipals(endpoint, payload);
+  const allowed = principals === undefined ? canActFor(caller, undefined) : principals.every((principal) => canActFor(caller, principal));
+  return allowed ? undefined : failure(ROUTE_ERRORS.callerNotAuthorized, `Caller ${caller.owner} may not act for the principals named in this request.`);
+}
 
 export const DEFAULT_RUNTIME_CORE: RuntimeCore = {
   evaluateEnforcement,
@@ -114,17 +169,34 @@ export const DEFAULT_RUNTIME_CORE: RuntimeCore = {
   monetizationService: defaultMonetizationService,
   capabilityAuditService: defaultCapabilityAuditService,
   controlPlaneService: defaultControlPlaneService,
+  revocationRegistry: new InMemoryRevocationRegistry(),
+  now: () => new Date(),
 };
 
-function reviveNow<T extends Record<string, unknown>>(payload: T): T {
-  if (typeof payload.now === 'string') {
-    return {
-      ...payload,
-      now: new Date(payload.now),
-    } as T;
-  }
+/** Endpoints whose decision depends on the evaluation time. They run at the core's clock only. */
+const CLOCK_BOUND_ENDPOINTS: readonly RuntimeEndpoint[] = [
+  '/enforcement/evaluate',
+  '/execution/authorize',
+  '/trust/verify',
+  '/data/access',
+  '/payout/execute',
+];
 
-  return payload;
+/**
+ * A caller-supplied `now` is refused rather than ignored: a client that relied on it (to revive
+ * an expired consent, capability or credential with a past timestamp) fails visibly instead of
+ * silently getting a server-clock decision it did not expect.
+ */
+function callerClockDenial(endpoint: RuntimeEndpoint, payload: unknown): ApiResponse<never> | undefined {
+  if (!CLOCK_BOUND_ENDPOINTS.includes(endpoint)) return undefined;
+  if (payload !== null && typeof payload === 'object' && 'now' in (payload as Record<string, unknown>)) {
+    return failure(ROUTE_ERRORS.invalidRequest, 'now is not accepted; the evaluation time is the server clock.');
+  }
+  return undefined;
+}
+
+function atServerClock<T extends Record<string, unknown>>(payload: T, core: RuntimeCore): T & { now: Date } {
+  return { ...payload, now: core.now() };
 }
 
 function success<T>(data: T): ApiResponse<T> {
@@ -268,7 +340,8 @@ export function deriveDecision(endpoint: RuntimeEndpoint, data: unknown): { deci
 export function executeRoute(
   endpoint: RuntimeEndpoint,
   payload: unknown,
-  core: RuntimeCore = DEFAULT_RUNTIME_CORE
+  core: RuntimeCore = DEFAULT_RUNTIME_CORE,
+  caller?: RuntimeCaller
 ): ApiResponse<
   | EnforcementDecision
   | ExecutionAuthorizationResult
@@ -288,27 +361,39 @@ export function executeRoute(
   | { events: RuntimeAuditEvent[] }
   | UsageSummaryResult
 > {
+  const callerDenial = authorizeCaller(endpoint, payload, caller);
+  if (callerDenial !== undefined) {
+    return callerDenial;
+  }
+
+  const clockDenial = callerClockDenial(endpoint, payload);
+  if (clockDenial !== undefined) {
+    return clockDenial;
+  }
+
+  const revocationCheck = createCapabilityRevocationCheck(core.revocationRegistry);
+
   try {
     switch (endpoint) {
       case '/enforcement/evaluate':
         return success(
           core.evaluateEnforcement(
-            reviveNow(payload as Parameters<typeof evaluateEnforcement>[0]),
-            capabilityRevocationCheck
+            atServerClock(payload as Parameters<typeof evaluateEnforcement>[0], core),
+            revocationCheck
           )
         );
       case '/execution/authorize':
         return success(
           core.authorizeExecution(
-            reviveNow(payload as Parameters<typeof authorizeExecution>[0]),
-            capabilityRevocationCheck
+            atServerClock(payload as Parameters<typeof authorizeExecution>[0], core),
+            revocationCheck
           )
         );
       case '/capability/mint':
         return success(
           core.mintCapability({
             ...(payload as Parameters<typeof mintCapability>[0]),
-            checkConsentRevocation: consentRevocationCheck,
+            checkConsentRevocation: revocationCheck,
           })
         );
       case '/access/request': {
@@ -405,11 +490,17 @@ export function executeRoute(
               requester_id: request.requester_id,
               reason: request.reason,
               idempotency_key: request.idempotency_key,
+              // The authenticated key, not the body, is who revokes: the service checks it
+              // against the stored grant's subject and requester.
+              authority: { owner: caller!.owner, principals: caller!.principals, admin: caller!.roles.includes('admin') },
             })
           );
         } catch (error) {
           if (error instanceof RevocationIdempotencyConflictError) {
             return failure('IDEMPOTENCY_CONFLICT', error.message);
+          }
+          if (error instanceof AccessGrantRevocationUnauthorizedError) {
+            return failure(ROUTE_ERRORS.callerNotAuthorized, `Caller ${caller!.owner} has no authority over grant ${request.grant_id}.`);
           }
           throw error;
         }
@@ -430,7 +521,7 @@ export function executeRoute(
         }
 
         try {
-          return success(core.payoutExecutor.execute(request as RlusdWithdrawalRequest));
+          return success(core.payoutExecutor.execute(request as RlusdWithdrawalRequest, core.now()));
         } catch (error) {
           return failure(
             ROUTE_ERRORS.executionError,
@@ -444,12 +535,12 @@ export function executeRoute(
         return success(core.trustService.registerCredential(payload as RegisterCredentialInput));
       case '/trust/verify':
         return success(
-          core.trustService.verifyIdentity(reviveNow(payload as Record<string, unknown>) as unknown as VerifyIdentityInput)
+          core.trustService.verifyIdentity(atServerClock(payload as Record<string, unknown>, core) as unknown as VerifyIdentityInput)
         );
       case '/trust/consent/grant':
         return success(core.trustService.grantConsent(payload as GrantConsentInput));
       case '/data/access': {
-        const request = reviveNow(payload as Partial<DataAccessRequestInput>);
+        const request = atServerClock(payload as Partial<DataAccessRequestInput>, core);
         if (!isNonEmptyString(request.subject_hash)) {
           return failure(ROUTE_ERRORS.invalidRequest, 'subject_hash is required.');
         }

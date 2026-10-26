@@ -1,8 +1,13 @@
-import { buildCapabilityAuthorizedEvent, buildCapabilityDeniedEvent } from '../../protocol/audit/builders';
-import { authorizeWithCapability, type CapabilityAuthorizationResult, type CapabilityToken } from '../../protocol/consent';
+import { randomUUID } from 'crypto';
 import type { AuditEvent } from '../../protocol/audit';
+import { authorizeWithCapability } from '../../protocol/consent/capability-authorize';
+import type { CapabilityAuthorizationResult, CapabilityToken } from '../../protocol/consent/capability-types';
 
-export type EnforcementMode = 'soft' | 'strict';
+/**
+ * The only enforcement mode. The former `soft` mode, which allowed a request that carried no
+ * capability token through with `CAPABILITY_SOFT_ALLOW_MISSING`, was removed (SOBE-SEC-03J).
+ */
+export type EnforcementMode = 'strict';
 
 export type CapabilityRequestContext = {
   endpoint: string;
@@ -70,8 +75,15 @@ function extractCapabilityToken(context: CapabilityRequestContext): unknown {
   return getCapabilityFromPayload(context.payload);
 }
 
+/**
+ * The `CAPABILITY_DENIED` audit event, in the exact shape `protocol/audit/builders.ts`'s
+ * `buildCapabilityDeniedEvent` emits (hosted `InMemoryAuditService` consumes it as a legacy
+ * event). Built here rather than imported because that module carries pre-existing type errors
+ * (baseline) which would stop this file's fail-closed contract test from running under ts-jest
+ * with diagnostics on; the path is disabled, so only the denied variant is ever needed.
+ */
 function buildAudit(result: CapabilityAuthorizationResult, context: CapabilityRequestContext): AuditEvent {
-  const builderInput = {
+  const event = {
     allowed: result.allowed,
     reason_code: result.reason_code,
     subject_id: context.subject_id,
@@ -82,30 +94,30 @@ function buildAudit(result: CapabilityAuthorizationResult, context: CapabilityRe
     metadata: {
       enforcement_mode: context.mode,
     },
+    event_id: randomUUID(),
+    event_type: 'CAPABILITY_DENIED',
+    occurred_at: new Date().toISOString(),
   };
 
-  return result.allowed ? buildCapabilityAuthorizedEvent(builderInput) : buildCapabilityDeniedEvent(builderInput);
+  return event as unknown as AuditEvent;
 }
 
 /**
- * SECURITY WARNING: delegates to `authorizeWithCapability`, which has no revocation check (see
- * that function's docstring). In 'soft' mode, a request with NO capability token is allowed
- * through entirely (`CAPABILITY_SOFT_ALLOW_MISSING`). Not exported from the stable
- * `runtime/index.ts` surface — see `runtime/internal.ts` and
- * docs/security/revocation/14-independent-review.md.
+ * HMAC capability enforcement is DISABLED (SOBE-SEC-03J): this function always denies.
+ *
+ * - No token: `CAPABILITY_MISSING` (403). There is no mode in which a missing token is allowed.
+ * - A token: it is still evaluated by `authorizeWithCapability` so the audit event and
+ *   `authorization.reason_code` say why (invalid, mismatched, or `CAPABILITY_PATH_DISABLED`
+ *   for a token that would otherwise have matched), and the request is denied
+ *   `CAPABILITY_DENIED` (403) regardless.
+ *
+ * Not exported from `runtime/enforcement/index.ts` or any stable surface;
+ * `scripts/check-runtime-export-governance.mjs` enforces that. See
+ * `protocol/consent/capability-authorize.ts` for what re-enabling would require.
  */
 export function enforceCapabilityAccess(context: CapabilityRequestContext): CapabilityEnforcementResult {
   const token = extractCapabilityToken(context);
   const tokenPresent = token !== undefined;
-
-  if (!tokenPresent && context.mode === 'soft') {
-    return {
-      allowed: true,
-      reason_code: 'CAPABILITY_SOFT_ALLOW_MISSING',
-      status_code: 200,
-      token_present: false,
-    };
-  }
 
   if (!tokenPresent) {
     const authorization: CapabilityAuthorizationResult = {
@@ -136,12 +148,13 @@ export function enforceCapabilityAccess(context: CapabilityRequestContext): Capa
     context.capabilitySecret
   );
 
+  // The path is disabled: deny even if the authorizer were ever to report an allow.
   return {
-    allowed: authorization.allowed,
-    reason_code: authorization.allowed ? 'CAPABILITY_AUTHORIZED' : 'CAPABILITY_DENIED',
-    status_code: authorization.allowed ? 200 : 403,
+    allowed: false,
+    reason_code: 'CAPABILITY_DENIED',
+    status_code: 403,
     token_present: true,
-    authorization,
+    authorization: authorization.allowed ? { ...authorization, allowed: false, reason_code: 'CAPABILITY_PATH_DISABLED' } : authorization,
     auditEvent: buildAudit(authorization, context),
   };
 }

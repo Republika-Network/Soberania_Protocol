@@ -234,9 +234,11 @@ export function normalizeCapabilityAccessRequest(
   validateIsoTimestamp(normalizedCapability.notBefore, 'Capability not_before');
   validateIsoTimestamp(normalizedCapability.expiresAt, 'Capability expires_at');
 
-  if (input.consent) {
+  // Decide on a private copy, so the consent that is verified is the one used.
+  const consent = input.consent ? (JSON.parse(JSON.stringify(input.consent)) as typeof input.consent) : input.consent;
+  if (consent) {
     try {
-      validateConsentObject(input.consent);
+      validateConsentObject(consent);
     } catch (error) {
       throw new CapabilityAccessInputError(
         capabilityAccessReasonCodes.CONSENT_INVALID,
@@ -247,14 +249,15 @@ export function normalizeCapabilityAccessRequest(
 
   return {
     capability: normalizedCapability,
-    consent: input.consent,
+    consent,
     action: input.action.trim(),
     resource: normalizeResource(input.resource),
     marketMakerId: input.marketMakerId,
     evaluatedAt,
     usageContext: input.usageContext ? { ...input.usageContext } : undefined,
     policyContext: input.policyContext ? { ...input.policyContext } : undefined,
-    metadata: input.metadata ? { ...input.metadata } : undefined
+    metadata: input.metadata ? { ...input.metadata } : undefined,
+    revocationRegistry: input.registries?.revocationRegistry
   };
 }
 

@@ -2,11 +2,12 @@ import {
   validateCapabilityToken,
   type CapabilityTokenV1
 } from '../../../capability';
-import { isRevoked } from '../../../capability/revocation';
+import { readRevocation } from '../../../capability/revocation';
 import type { NonceRegistry } from '../../../capability/registries/NonceRegistry';
 import type { RevocationRegistry } from '../../../capability/registries/RevocationRegistry';
 import {
   validateConsentObject,
+  verifyConsentObjectProof,
   type ConsentObjectV1
 } from '../../../consent';
 import type {
@@ -31,7 +32,6 @@ const CAPABILITY_CONSUMPTION_ALLOWED_REASON =
 
 export const capabilityConsumptionReasonCodes = {
   ...capabilityAccessReasonCodes,
-  CAPABILITY_REVOKED: 'CAPABILITY_REVOKED',
   CAPABILITY_REPLAYED: 'CAPABILITY_REPLAYED',
   REPLAY_PROTECTION_REQUIRED: 'REPLAY_PROTECTION_REQUIRED',
   RATE_LIMITED: 'RATE_LIMITED'
@@ -474,7 +474,8 @@ function buildEvaluationRequest(
     policyContext: request.policyContext ? { ...request.policyContext } : undefined,
     metadata: undefined,
     marketMakerRegistry: request.marketMakerRegistry,
-    hooks: request.hooks
+    hooks: request.hooks,
+    registries: { revocationRegistry: request.registries?.revocationRegistry }
   };
 }
 
@@ -511,6 +512,19 @@ export function consumeCapabilityAccess(
       tokenId: capability.token_id
     });
 
+    if (!normalizedConsent) {
+      checks.consent = 'fail';
+      return deny(
+        evaluatedAt,
+        capabilityAccessReasonCodes.CONSENT_INVALID,
+        'Parent consent is required for capability consumption.',
+        checks,
+        sanitizeMetadata({ ...metadata, failureStage: 'integrity' }),
+        false,
+        false
+      );
+    }
+
     if (normalizedConsent) {
       try {
         validateConsentObject(normalizedConsent);
@@ -520,6 +534,20 @@ export function consumeCapabilityAccess(
           evaluatedAt,
           capabilityAccessReasonCodes.CONSENT_INVALID,
           (error as Error).message || 'Parent consent is invalid for capability consumption.',
+          checks,
+          sanitizeMetadata({ ...metadata, failureStage: 'integrity' }),
+          false,
+          false
+        );
+      }
+
+      const proof = verifyConsentObjectProof(normalizedConsent);
+      if (!proof.valid) {
+        checks.consent = 'fail';
+        return deny(
+          evaluatedAt,
+          capabilityAccessReasonCodes.CONSENT_UNAUTHENTICATED,
+          proof.reason,
           checks,
           sanitizeMetadata({ ...metadata, failureStage: 'integrity' }),
           false,
@@ -582,6 +610,14 @@ export function consumeCapabilityAccess(
     checks.policy = accessDecision.checks.policy;
 
     if (!accessDecision.allowed) {
+      // Evaluation already read the registry; a revocation denial is reported as such.
+      if (
+        accessDecision.reasonCode === capabilityAccessReasonCodes.CONSENT_REVOKED ||
+        accessDecision.reasonCode === capabilityAccessReasonCodes.CAPABILITY_REVOKED ||
+        accessDecision.reasonCode === capabilityAccessReasonCodes.REVOCATION_UNAVAILABLE
+      ) {
+        checks.revocation = 'fail';
+      }
       return deny(
         evaluatedAt,
         accessDecision.reasonCode,
@@ -639,13 +675,34 @@ export function consumeCapabilityAccess(
       });
     }
 
-    checks.revocation = 'pass';
-    if (isRevoked(capability.capability_hash, request.registries?.revocationRegistry)) {
-      checks.revocation = 'fail';
+    // Revocation is read again here, from the injected registry: consumption never
+    // trusts that an earlier evaluation checked it. A revoked consent withdraws this
+    // capability; a revoked hash is containment of this token; no registry, no access.
+    const revocation = readRevocation(request.registries?.revocationRegistry, {
+      capability_hash: capability.capability_hash,
+      consent_hash: normalizedConsent!.consent_hash
+    });
+    checks.revocation = revocation.state === 'clear' ? 'pass' : 'fail';
+    if (revocation.state === 'unavailable') {
       return deny(
         evaluatedAt,
-        capabilityConsumptionReasonCodes.CAPABILITY_REVOKED,
-        'Capability token has been revoked.',
+        capabilityConsumptionReasonCodes.REVOCATION_UNAVAILABLE,
+        `Revocation status could not be determined: ${revocation.reason}`,
+        checks,
+        sanitizeMetadata({ ...metadata, failureStage: 'revocation' }),
+        shouldCheckReplay,
+        false
+      );
+    }
+    if (revocation.state !== 'clear') {
+      return deny(
+        evaluatedAt,
+        revocation.state === 'revoked_consent'
+          ? capabilityConsumptionReasonCodes.CONSENT_REVOKED
+          : capabilityConsumptionReasonCodes.CAPABILITY_REVOKED,
+        revocation.state === 'revoked_consent'
+          ? 'Parent consent has been revoked by its subject.'
+          : 'Capability token has been revoked.',
         checks,
         sanitizeMetadata({ ...metadata, failureStage: 'revocation' }),
         shouldCheckReplay,

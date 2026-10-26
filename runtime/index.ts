@@ -8,18 +8,19 @@
  * `createRuntimeServer` and the HMAC capability-token enforcement path
  * (`enforceCapabilityAccess`, formerly re-exported here via `export * from
  * './enforcement'`) are deliberately NOT exported from this stable surface — see
- * docs/security/revocation/14-independent-review.md §Part 1/2. That authorization path
- * (`protocol/consent/capability-authorize.ts`) has no revocation check of any kind, gates
- * live `/data/access` and `/payout/execute` traffic, and must not be presented as a
- * ready-to-use stable API. They remain available, explicitly labeled non-stable, via
- * `./internal` (see `runtime/internal.ts`), matching this repo's existing internal/
- * experimental surface convention. `scripts/check-runtime-export-governance.mjs` fails CI
- * if either is re-added here.
+ * docs/security/revocation/14-independent-review.md §Part 1/2. Since SOBE-SEC-03J the
+ * HMAC path is disabled outright: `authorizeWithCapability` never allows
+ * (`CAPABILITY_PATH_DISABLED`), is no longer exported from `protocol/consent`, and
+ * `enforceCapabilityAccess` has no soft mode and is exported from no surface at all
+ * (only `runtime/api/server.ts` imports it by file path, where it denies every request).
+ * `createRuntimeServer` remains available, explicitly labeled non-stable, via `./internal`.
+ * `scripts/check-runtime-export-governance.mjs` fails CI if any of this is re-added.
  */
 
 export { HostedRuntimeClient } from './sdk/client';
 export type { HostedRuntimeSdk, HostedRuntimeClientOptions, PayoutCallbackResult } from './sdk/client';
-export { InMemoryApiKeyStore, DEFAULT_API_KEYS } from './auth/apiKeys';
+export { InMemoryApiKeyStore, canActFor, toRuntimeCaller } from './auth/apiKeys';
+export type { ApiKeyRecord, ApiKeyRole, ApiTier, RuntimeCaller } from './auth/apiKeys';
 export { InMemoryRateLimiter } from './limits/rateLimiter';
 export { RuntimeLogger } from './logging/logger';
 export { InMemoryTrustService, DEFAULT_TRUST_ISSUERS } from './trust/service';

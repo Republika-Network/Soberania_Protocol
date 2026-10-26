@@ -4,7 +4,9 @@ export { validateConsent } from './consent-validator';
 export { evaluateConsentState, isConsentActive, isConsentRevoked } from './consent-state';
 export { doesConsentAllowScope } from './consent-machine';
 export { evaluateConsent } from './evaluate';
+export type { ConsentDecisionOptions } from './evaluate';
 export { isValidConsentRecord, isValidConsentRequest } from './validate';
+export { signConsentRecord, verifyConsentRecordProof } from './consent-record-proof';
 export { CONSENT_DECISION_REASON_CODES } from './types';
 
 export { ConsentParseError, ConsentValidationError } from './consent-errors';

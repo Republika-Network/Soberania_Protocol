@@ -1,3 +1,6 @@
+import { snapshotGovernanceSignature, verifyPayloadSignature } from '@aoc-runtime/crypto';
+import type { TrustedKeyResolver } from '@aoc-runtime/crypto';
+import type { GovernanceSignature } from '@aoc-runtime/shared-types';
 import { IdentityVerificationEngine, type VerifyIdentityInput } from '../verification/identity-verification';
 import type {
   AocIdentityConsentRecord,
@@ -18,6 +21,8 @@ export type RegisterCredentialInput = {
   wallet_address?: string;
   issued_at: string;
   expires_at?: string;
+  /** Signature by the issuer's trusted key over `identityRegistrationPayload('credential', input)`. */
+  issuer_signature: GovernanceSignature;
 };
 
 export type GrantConsentInput = {
@@ -26,7 +31,27 @@ export type GrantConsentInput = {
   consumer_id: string;
   issuer_id: string;
   granted_at: string;
+  /** Signature by the issuer's trusted key over `identityRegistrationPayload('consent', input)`. */
+  issuer_signature: GovernanceSignature;
 };
+
+export type InMemoryTrustServiceOptions = {
+  /**
+   * Issuer keys configured independently of any request. Credentials and
+   * consents are accepted only when signed by the key whose `issuerId` is the
+   * record's `issuer_id`. Without keys, registration is refused.
+   */
+  trustedIssuerKeys?: TrustedKeyResolver;
+};
+
+/** The bytes an issuer signs to register a credential or consent: the record without its signature. */
+export function identityRegistrationPayload(
+  kind: 'credential' | 'consent',
+  input: Omit<RegisterCredentialInput, 'issuer_signature'> | Omit<GrantConsentInput, 'issuer_signature'>
+): { kind: 'aoc.identity.credential' | 'aoc.identity.consent'; record: Record<string, unknown> } {
+  const { issuer_signature: _ignored, ...record } = input as Record<string, unknown>;
+  return { kind: kind === 'credential' ? 'aoc.identity.credential' : 'aoc.identity.consent', record };
+}
 
 export type { VerifyIdentityInput } from '../verification/identity-verification';
 
@@ -36,10 +61,14 @@ export class InMemoryTrustService {
   private readonly consents = new Map<string, AocIdentityConsentRecord>();
   private readonly auditEvents: TrustAuditEvent[] = [];
 
+  private readonly trustedIssuerKeys?: TrustedKeyResolver;
+
   constructor(
     initialIssuers: readonly AocIdentityIssuerRecord[] = [],
+    options: InMemoryTrustServiceOptions = {},
     private readonly verificationEngine = new IdentityVerificationEngine(),
   ) {
+    this.trustedIssuerKeys = options.trustedIssuerKeys;
     for (const issuer of initialIssuers) this.issuers.set(issuer.issuer_id, issuer);
   }
 
@@ -47,7 +76,30 @@ export class InMemoryTrustService {
     return [...this.auditEvents];
   }
 
-  registerCredential(input: RegisterCredentialInput): AocIdentityCredentialRecord {
+  /**
+   * Confirms that `input` was signed by the trusted key of the issuer it names,
+   * and returns the signed record (read once). Throws otherwise.
+   */
+  private authenticateIssuer<T extends RegisterCredentialInput | GrantConsentInput>(kind: 'credential' | 'consent', input: T): Omit<T, 'issuer_signature'> {
+    if (this.trustedIssuerKeys === undefined) {
+      throw new Error('No trusted issuer keys are configured; identity registration is refused.');
+    }
+    const payload = identityRegistrationPayload(kind, input);
+    const record = payload.record as Omit<T, 'issuer_signature'>;
+    const envelope = snapshotGovernanceSignature(input?.issuer_signature);
+    if (
+      !envelope ||
+      typeof record.issuer_id !== 'string' ||
+      envelope.signer.issuerId !== record.issuer_id ||
+      !verifyPayloadSignature(payload, envelope, this.trustedIssuerKeys)
+    ) {
+      throw new Error(`Identity ${kind} is not signed by issuer ${String(record.issuer_id)}.`);
+    }
+    return record;
+  }
+
+  registerCredential(signedInput: RegisterCredentialInput): AocIdentityCredentialRecord {
+    const input = this.authenticateIssuer('credential', signedInput);
     const issuer = this.issuers.get(input.issuer_id);
     if (issuer === undefined || !issuer.active) throw new Error(`Issuer is invalid or inactive: ${input.issuer_id}`);
     if (!issuer.supported_kyc_levels.includes(input.kyc_level)) throw new Error(`Issuer does not support KYC level: ${input.kyc_level}`);
@@ -83,7 +135,8 @@ export class InMemoryTrustService {
     return record;
   }
 
-  grantConsent(input: GrantConsentInput): AocIdentityConsentRecord {
+  grantConsent(signedInput: GrantConsentInput): AocIdentityConsentRecord {
+    const input = this.authenticateIssuer('consent', signedInput);
     const issuer = this.issuers.get(input.issuer_id);
     if (issuer === undefined || !issuer.active) throw new Error(`Issuer is invalid or inactive: ${input.issuer_id}`);
     const consent: AocIdentityConsentRecord = {

@@ -16,19 +16,17 @@ export * from './policy';
 export * from './memory';
 
 /**
- * SECURITY WARNING — no canonical revocation check.
+ * SECURITY NOTE — HMAC capability path disabled (SOBE-SEC-03J).
  *
- * `createRuntimeServer` and `enforceCapabilityAccess` are moved here (out of the stable
- * `./index` surface) because the authorization path they use —
- * `protocol/consent/capability-authorize.ts`'s `authorizeWithCapability` — validates only
- * token shape, hash, HMAC signature, and expiry. It has no `checkRevocation` parameter and
- * no revoke mechanism exists anywhere for its `capability_id` key space. `createRuntimeServer`
- * gates live `POST /data/access` and `POST /payout/execute` traffic through this path.
+ * `createRuntimeServer` lives here (out of the stable `./index` surface) because the
+ * HMAC capability-token path it gated `POST /data/access` and `POST /payout/execute` with
+ * (`protocol/consent/capability-authorize.ts`) has no revocation check, no single-use and a
+ * non-constant-time compare. That path is now disabled: `authorizeWithCapability` never
+ * allows, `enforceCapabilityAccess` always denies and has no soft mode, and neither is
+ * exported from any surface (the `./enforcement` re-export below carries types only). A
+ * hosted request that names both principals is therefore denied.
  *
- * Do not use these to authorize material operations without first adding a canonical
- * `RevocationCheckPort` to `authorizeWithCapability` (see docs/security/revocation/ for the
- * pattern used everywhere else in this repo). See
- * docs/security/revocation/14-independent-review.md for the full analysis.
+ * See docs/security/revocation/14-independent-review.md and 15-final-hardening.md.
  */
 export { createRuntimeServer } from './api/server';
 export * from './enforcement';

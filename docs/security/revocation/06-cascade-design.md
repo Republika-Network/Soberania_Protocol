@@ -23,12 +23,13 @@ The sprint's cascade requirements (§24–25: revoking an identity/passport must
 passports, delegations, execution grants, credentials) assume a real hierarchy connecting those
 subject types. **That hierarchy does not exist in this codebase.** Concretely:
 
-- `ProtocolCapability` (`protocol/capability/capability-types.ts`) references its parent consent
-  via `parent_consent_hash`, but nothing queries "all capabilities minted from consent X" — there
-  is no reverse index. Revoking a `consent_grant` (via `checkConsentRevocation` at the *next* mint
-  attempt) blocks new capabilities from being minted from it, but does **not** retroactively
-  invalidate capabilities already minted — each capability's own revocation status is checked
-  independently via its own `capability_hash`.
+- Consent → capability is the one edge that is covered, by key rather than by index: every
+  `ProtocolCapability` (`parent_consent_hash`) and every `CapabilityTokenV1` (`consent_ref`)
+  carries its consent's hash, and every authorization path asks the registry about that hash
+  before the token's own (`capability/revocation.ts` `readRevocation`,
+  `protocol/revocation` `createCapabilityRevocationCheck`). Revoking a `consent_grant` therefore
+  invalidates capabilities already minted from it, including ones minted outside the vault or
+  re-identified with a new `token_id`, without a reverse index.
 - `GrantedAccess` (`runtime/controlPlane.ts`) has no children of its own to cascade to — it is a
   leaf record in this codebase.
 

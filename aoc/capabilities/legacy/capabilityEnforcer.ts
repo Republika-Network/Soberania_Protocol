@@ -17,7 +17,8 @@ import {
 export type EnforceCapabilityInput = {
   required_scope: string;
   token: CapabilityTokenV1 & Record<string, unknown>;
-  consent?: ConsentObjectV1;
+  /** Required: access is denied without the parent consent. */
+  consent: ConsentObjectV1;
   now?: Date;
   resource_context?: Record<string, unknown>;
   request_context?: Record<string, unknown>;

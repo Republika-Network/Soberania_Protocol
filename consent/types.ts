@@ -1,3 +1,5 @@
+import type { SubjectConsentProofV1 } from './proof';
+
 export type ScopeEntry = {
   type: 'field' | 'content' | 'pack';
   ref: string;
@@ -25,6 +27,12 @@ export type ConsentObjectV1 = {
   expires_at: string | null;
   prior_consent: string | null;
   consent_hash: string;
+  /**
+   * The subject's detached signature over this consent (consent/proof.ts). It is
+   * not part of the canonical payload, so consent_hash does not depend on it.
+   * A consent without a valid proof is legacy data and authorizes nothing.
+   */
+  subject_proof?: SubjectConsentProofV1;
 };
 
 export type BuildConsentOptions = {

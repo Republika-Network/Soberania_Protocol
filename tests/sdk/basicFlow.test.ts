@@ -1,13 +1,28 @@
 import {
-  buildConsentObject,
-  consumeCapabilityAccess,
-  evaluateCapabilityAccess,
+  buildConsentObject as buildUnsignedConsentObject,
+  consumeCapabilityAccess as consumeCapabilityAccessRaw,
+  evaluateCapabilityAccess as evaluateCapabilityAccessRaw,
   mintCapabilityToken,
   MarketMakerRegistry
 } from '../../aoc/sdk';
+import { testSubjectSigner, signTestConsent } from '../helpers/consentSigning';
+import { InMemoryRevocationRegistry } from '../../capability/registries/InMemoryRevocationRegistry';
 
-const SUBJECT = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK';
-const GRANTEE = 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH';
+// Every authorization path reads revocation from an injected registry; these
+// tests share one and pass it unless a test supplies its own.
+const revocationRegistry = new InMemoryRevocationRegistry();
+const evaluateCapabilityAccess: typeof evaluateCapabilityAccessRaw = (input) =>
+  evaluateCapabilityAccessRaw({ ...input, registries: { revocationRegistry, ...input.registries } });
+const consumeCapabilityAccess: typeof consumeCapabilityAccessRaw = (input) =>
+  consumeCapabilityAccessRaw({ ...input, registries: { revocationRegistry, ...input.registries } });
+
+
+// Consents in these tests are signed by their subject; unsigned consents authorize nothing.
+const buildConsentObject: typeof buildUnsignedConsentObject = (...args) =>
+  signTestConsent(buildUnsignedConsentObject(...args));
+
+const SUBJECT = testSubjectSigner('subject').did;
+const GRANTEE = testSubjectSigner('grantee').did;
 const MARKET_MAKER_ID = 'hrkey-v1';
 const CONTENT_REF = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const NOW = '2025-06-15T10:00:00Z';

@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import { URL } from 'url';
-import { DEFAULT_API_KEYS, InMemoryApiKeyStore } from '../auth/apiKeys';
+import { InMemoryApiKeyStore, toRuntimeCaller } from '../auth/apiKeys';
 import { InMemoryRateLimiter } from '../limits/rateLimiter';
 import { RuntimeLogger } from '../logging/logger';
 import { DefaultRuntimeHealthReporter, DefaultTraceContextProvider, NoopRuntimeMetricsSink, NoopTelemetrySink, type RuntimeMetricsSink, type RuntimeHealthReporter, type TelemetrySink, type TraceContextProvider } from '../observability';
@@ -10,7 +10,7 @@ import { CONTRACTS_VERSION, MINIMUM_SUPPORTED_TRANSPORT_VERSION, PLATFORM_VERSIO
 import { authAndLimit } from './middleware';
 import { DEFAULT_RUNTIME_CORE, deriveDecision, executeRoute, maybeResolveUsageConsumerId, type RuntimeCore } from './routes';
 import { isMeteredEndpoint } from '../usage';
-import { enforceCapabilityAccess, type EnforcementMode } from '../enforcement';
+import { enforceCapabilityAccess, type EnforcementMode } from '../enforcement/enforceCapability';
 
 const POST_ENDPOINTS: RuntimeEndpoint[] = [
   '/enforcement/evaluate',
@@ -77,13 +77,34 @@ function parseGetPayload(url: URL): Record<string, string> {
   return payload;
 }
 
+/**
+ * Hosted access has no built-in credentials: the operator must supply the API
+ * key store and the capability secret (`deps.capabilitySecret` or
+ * `AOC_CAPABILITY_SECRET`). Capability enforcement is always strict: the former
+ * soft mode, which let requests without a token through, no longer exists and any
+ * attempt to configure it is refused. The HMAC capability path itself is disabled
+ * (SOBE-SEC-03J), so a `/data/access` or `/payout/execute` request that names both
+ * principals is denied whether or not it carries a token.
+ */
 export function createRuntimeServer(deps: RuntimeServerDeps = {}) {
-  const apiKeyStore = deps.apiKeyStore ?? new InMemoryApiKeyStore(DEFAULT_API_KEYS);
+  if (deps.apiKeyStore === undefined) {
+    throw new Error('createRuntimeServer requires an explicitly configured apiKeyStore.');
+  }
+  const apiKeyStore = deps.apiKeyStore;
   const rateLimiter = deps.rateLimiter ?? new InMemoryRateLimiter();
   const logger = deps.logger ?? new RuntimeLogger();
   const core = deps.core ?? DEFAULT_RUNTIME_CORE;
-  const capabilitySecret = deps.capabilitySecret ?? process.env.AOC_CAPABILITY_SECRET ?? 'aoc_runtime_capability_secret';
-  const enforcementMode = deps.enforcementMode ?? (process.env.ENFORCEMENT_MODE === 'strict' ? 'strict' : 'soft');
+  const capabilitySecret = deps.capabilitySecret ?? process.env.AOC_CAPABILITY_SECRET;
+  if (typeof capabilitySecret !== 'string' || capabilitySecret.trim() === '') {
+    throw new Error('createRuntimeServer requires a capability secret (deps.capabilitySecret or AOC_CAPABILITY_SECRET).');
+  }
+  if (deps.enforcementMode !== undefined && deps.enforcementMode !== 'strict') {
+    throw new Error('createRuntimeServer: capability enforcement is always strict; soft mode no longer exists.');
+  }
+  if (process.env.ENFORCEMENT_MODE !== undefined && process.env.ENFORCEMENT_MODE !== 'strict') {
+    throw new Error('createRuntimeServer: ENFORCEMENT_MODE must be unset or "strict"; soft mode no longer exists.');
+  }
+  const enforcementMode: EnforcementMode = 'strict';
   const telemetrySink = deps.telemetrySink ?? new NoopTelemetrySink();
   const metricsSink = deps.metricsSink ?? new NoopRuntimeMetricsSink();
   const traceContextProvider = deps.traceContextProvider ?? new DefaultTraceContextProvider();
@@ -194,7 +215,7 @@ export function createRuntimeServer(deps: RuntimeServerDeps = {}) {
       }
     }
 
-    const routeResult = executeRoute(pathname, payload, core);
+    const routeResult = executeRoute(pathname, payload, core, toRuntimeCaller(authResult.data.apiKey));
     if (!routeResult.success || routeResult.data === undefined) {
       logger.log({
         requestId,

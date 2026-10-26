@@ -5,6 +5,7 @@ export type {
   RegisterPackResult,
   GrantConsentInput,
   GrantConsentResult,
+  SignedConsentInput,
   MintCapabilityInput,
   MintCapabilityResult,
   AccessRequestInput,

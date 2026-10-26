@@ -1,24 +1,41 @@
 import { createInMemoryVault } from '../vault';
 import { Vault } from '../types';
-import { buildConsentObject } from '../../consent';
+import { buildConsentObject as buildUnsignedConsentObject } from '../../consent';
 import { ScopeEntry } from '../../consent/types';
-import { buildPackManifest } from '../../pack';
+import { buildPackManifest as buildUnsignedPackManifest } from '../../pack';
 import { FieldReference } from '../../pack/types';
 import { buildStoragePointer } from '../../storage';
 import {
+  InMemoryRevocationRegistry,
   resetNonceRegistry,
-  resetRevocationRegistry,
   revokeCapabilityToken
 } from '../../capability';
+import { testSubjectSigner, signTestConsent, signTestPack } from '../../tests/helpers/consentSigning';
+import { TEST_TRUST_DOMAIN, testContentOwnership } from '../../tests/helpers/contentOwnership';
+
+// Packs stored in a vault are signed by their subject; an unsigned pack names an owner nobody vouched for.
+const buildPackManifest: typeof buildUnsignedPackManifest = (...args) =>
+  signTestPack(buildUnsignedPackManifest(...args));
+
+
+// Consents in these tests are signed by their subject; unsigned consents authorize nothing.
+const buildConsentObject: typeof buildUnsignedConsentObject = (...args) =>
+  signTestConsent(buildUnsignedConsentObject(...args));
 
 // --- Test constants ---
 
-const SUBJECT = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK';
-const GRANTEE = 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH';
+const SUBJECT = testSubjectSigner('subject').did;
+const GRANTEE = testSubjectSigner('grantee').did;
 
 const CONTENT_A = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const CONTENT_B = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 const CONTENT_C = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc';
+
+// The trust domain's custodian attributes the subject's content to it before any pack is stored.
+const vaultOptions = () => ({
+  trustDomain: TEST_TRUST_DOMAIN,
+  contentOwnership: testContentOwnership({ [CONTENT_A]: SUBJECT, [CONTENT_B]: SUBJECT, [CONTENT_C]: SUBJECT }).authority,
+});
 
 const STORAGE_HASH_A = '1111111111111111111111111111111111111111111111111111111111111111';
 const STORAGE_HASH_B = '2222222222222222222222222222222222222222222222222222222222222222';
@@ -89,8 +106,10 @@ function setupVault(): {
   vault: Vault;
   pack_hash: string;
   consent_hash: string;
+  revocationRegistry: InMemoryRevocationRegistry;
 } {
-  const vault = createInMemoryVault();
+  const revocationRegistry = new InMemoryRevocationRegistry();
+  const vault = createInMemoryVault({ ...vaultOptions(), revocationRegistry });
 
   // Store pack
   const pack = makePack();
@@ -105,14 +124,13 @@ function setupVault(): {
   vault.registerSdlMapping('person.birth.date', 'birth-date');
   vault.registerSdlMapping('person.location.country', 'country');
 
-  return { vault, pack_hash, consent_hash };
+  return { vault, pack_hash, consent_hash, revocationRegistry };
 }
 
 // --- Reset registries between tests ---
 
 beforeEach(() => {
   resetNonceRegistry();
-  resetRevocationRegistry();
 });
 
 // ============================================================
@@ -187,7 +205,7 @@ describe('vault happy path: store consent -> mint capability -> request access (
   });
 
   it('allows access when scope covers pack by pack ref', () => {
-    const vault = createInMemoryVault();
+    const vault = createInMemoryVault(vaultOptions());
     const pack = makePack();
     const pack_hash = vault.storePack(pack);
 
@@ -306,9 +324,9 @@ describe('vault replay: reuse token -> DENY(REPLAY)', () => {
 // 4. Revocation: revoke token -> DENY(REVOKED)
 // ============================================================
 
-describe('vault revocation: revoke token -> DENY(REVOKED)', () => {
+describe('vault revocation: operator revokes one token -> DENY(REVOKED)', () => {
   it('denies access when capability token has been revoked', () => {
-    const { vault, pack_hash, consent_hash } = setupVault();
+    const { vault, pack_hash, consent_hash, revocationRegistry } = setupVault();
 
     const token = vault.mintCapability(
       consent_hash,
@@ -318,8 +336,8 @@ describe('vault revocation: revoke token -> DENY(REVOKED)', () => {
       { now: tokenNow }
     );
 
-    // Revoke the token
-    vault.revokeCapability(token.capability_hash);
+    // Operator containment of this one token, through the vault's registry.
+    revokeCapabilityToken(token.capability_hash, revocationRegistry);
 
     // Access after revocation
     const result = vault.requestAccess(
@@ -342,7 +360,7 @@ describe('vault revocation: revoke token -> DENY(REVOKED)', () => {
 
 describe('vault scope escalation: uncovered SDL path -> DENY(SCOPE_ESCALATION)', () => {
   it('denies access when resolved field content is not in capability scope', () => {
-    const vault = createInMemoryVault();
+    const vault = createInMemoryVault(vaultOptions());
 
     const pack = makePack();
     const pack_hash = vault.storePack(pack);
@@ -394,9 +412,8 @@ describe('vault deterministic ordering', () => {
     // Run the same request twice (with fresh registries) and compare
     function runRequest() {
       resetNonceRegistry();
-      resetRevocationRegistry();
 
-      const vault = createInMemoryVault();
+      const vault = createInMemoryVault({ ...vaultOptions(), revocationRegistry: new InMemoryRevocationRegistry() });
       const pack = makePack();
       const pack_hash = vault.storePack(pack);
 
@@ -506,7 +523,7 @@ describe('vault deterministic ordering', () => {
 
 describe('vault store operations', () => {
   it('stores and retrieves packs by hash', () => {
-    const vault = createInMemoryVault();
+    const vault = createInMemoryVault(vaultOptions());
     const pack = makePack();
     const hash = vault.storePack(pack);
     expect(hash).toBe(pack.pack_hash);
@@ -514,7 +531,7 @@ describe('vault store operations', () => {
   });
 
   it('stores and retrieves consents by hash', () => {
-    const vault = createInMemoryVault();
+    const vault = createInMemoryVault(vaultOptions());
     const consent = makeConsent();
     const hash = vault.storeConsent(consent);
     expect(hash).toBe(consent.consent_hash);
@@ -522,7 +539,7 @@ describe('vault store operations', () => {
   });
 
   it('stores capabilities after minting', () => {
-    const vault = createInMemoryVault();
+    const vault = createInMemoryVault(vaultOptions());
     const consent = makeConsent();
     vault.storeConsent(consent);
 
@@ -538,7 +555,7 @@ describe('vault store operations', () => {
   });
 
   it('throws when minting capability for non-existent consent', () => {
-    const vault = createInMemoryVault();
+    const vault = createInMemoryVault(vaultOptions());
     const fakeHash = 'f'.repeat(64);
 
     expect(() =>
@@ -601,14 +618,14 @@ describe('vault SDL path validation', () => {
   });
 
   it('rejects SDL mapping registration with invalid paths', () => {
-    const vault = createInMemoryVault();
+    const vault = createInMemoryVault(vaultOptions());
     expect(() => vault.registerSdlMapping('BAD', 'field-id')).toThrow('Invalid SDL path');
   });
 });
 
 describe('vault consent not found for token', () => {
   it('denies access when consent for capability is not in store', () => {
-    const vault = createInMemoryVault();
+    const vault = createInMemoryVault(vaultOptions());
     const pack = makePack();
     const pack_hash = vault.storePack(pack);
 
@@ -808,7 +825,7 @@ describe('vault hardening: negative paths and invariant shapes', () => {
   });
 
   it('throws deterministic CONSENT_NOT_FOUND when minting with unknown consent_ref', () => {
-    const vault = createInMemoryVault();
+    const vault = createInMemoryVault(vaultOptions());
 
     try {
       vault.mintCapability('f'.repeat(64), makeConsentScope(), ['read'], tokenExpires, {
@@ -872,7 +889,7 @@ describe('vault hardening: negative paths and invariant shapes', () => {
 });
 
 describe('vault consent-based revocation', () => {
-  it('revokes a minted capability via applyConsent and denies access with REVOKED', () => {
+  it('revokes the consent via applyConsent and denies access with CONSENT_REVOKED', () => {
     const { vault, pack_hash, consent_hash } = setupVault();
 
     const token = vault.mintCapability(
@@ -901,6 +918,7 @@ describe('vault consent-based revocation', () => {
       [],
       {
         now: new Date('2025-06-15T10:00:30Z'),
+        prior_consent: consent_hash,
         revoke_target: { capability_hash: token.capability_hash }
       }
     );
@@ -917,7 +935,7 @@ describe('vault consent-based revocation', () => {
     );
 
     expect(afterRevoke.policy.decision).toBe('DENY');
-    expect(afterRevoke.policy.reason_codes).toContain('REVOKED');
+    expect(afterRevoke.policy.reason_codes).toContain('CONSENT_REVOKED');
   });
 
   it('rejects revoke consent when subject differs from original consent subject', () => {
@@ -932,13 +950,14 @@ describe('vault consent-based revocation', () => {
     );
 
     const unauthorizedRevoke = buildConsentObject(
-      'did:key:z6MkhUnauthorizedRevoker1234567890abc',
+      testSubjectSigner('unauthorized-revoker').did,
       GRANTEE,
       'revoke',
       [],
       [],
       {
         now: new Date('2025-06-15T10:00:30Z'),
+        prior_consent: consent_hash,
         revoke_target: { capability_hash: token.capability_hash }
       }
     );

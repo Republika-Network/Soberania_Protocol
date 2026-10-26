@@ -17,12 +17,21 @@ function deny(reason_code: CapabilityReasonCode, capability_id: string | null): 
 }
 
 /**
- * SECURITY WARNING: this function validates capability shape, hash, HMAC signature, and
- * expiry ONLY. It has no revocation check — there is no `checkRevocation`/`RevocationCheckPort`
- * parameter, and no revoke mechanism exists anywhere in this codebase for the `capability_id`
- * key space this function authorizes. Do not use this to authorize material operations without
- * first adding canonical revocation checking (see protocol/revocation and
- * docs/security/revocation/14-independent-review.md).
+ * HMAC capability token use is DISABLED (SOBE-SEC-03J).
+ *
+ * This function never authorizes. It still validates the token's shape, hash, HMAC signature
+ * and expiry and still reports request/token mismatches, so callers get a precise denial
+ * reason, but a token that passes every check is denied with `CAPABILITY_PATH_DISABLED`.
+ *
+ * Why: the token-use path has no revocation check (no `RevocationCheckPort`, and no revoke
+ * mechanism exists for its `capability_id` key space), no single-use protection and a
+ * non-constant-time signature compare (S3-09). Its only caller, `runtime/enforcement`, runs
+ * under transpile-only toolchains despite its type errors, so "does not compile" is not a
+ * safeguard. The function is no longer exported from the `protocol/consent` barrel;
+ * `scripts/check-runtime-export-governance.mjs` keeps it off every stable surface.
+ *
+ * Re-enabling requires: a mandatory authoritative revocation port that denies on anything but
+ * `verified_not_revoked`, single-use (nonce) enforcement, and a constant-time signature compare.
  */
 export function authorizeWithCapability(
   request: CapabilityAuthorizationRequest,
@@ -57,10 +66,6 @@ export function authorizeWithCapability(
     return deny(CAPABILITY_REASON_CODES.ACTION_MISMATCH, capability.capability_id);
   }
 
-  return {
-    allowed: true,
-    reason_code: CAPABILITY_REASON_CODES.ALLOW,
-    evaluated_at: new Date().toISOString(),
-    capability_id: capability.capability_id,
-  };
+  // A valid, exactly matching token: the path is disabled, so this is still a denial.
+  return deny(CAPABILITY_REASON_CODES.CAPABILITY_PATH_DISABLED, capability.capability_id);
 }

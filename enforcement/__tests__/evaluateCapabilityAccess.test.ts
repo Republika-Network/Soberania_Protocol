@@ -1,4 +1,4 @@
-import { buildConsentObject } from '../../consent';
+import { buildConsentObject as buildUnsignedConsentObject } from '../../consent';
 import {
   canonicalizeCapabilityPayload,
   computeCapabilityHash,
@@ -6,12 +6,25 @@ import {
 } from '../../capability';
 import {
   capabilityAccessReasonCodes,
-  evaluateCapabilityAccess
+  evaluateCapabilityAccess as evaluateCapabilityAccessRaw
 } from '..';
 import { MarketMakerRegistry } from '../../shared/marketMakerRegistry';
+import { testSubjectSigner, signTestConsent } from '../../tests/helpers/consentSigning';
+import { InMemoryRevocationRegistry } from '../../capability/registries/InMemoryRevocationRegistry';
 
-const SUBJECT = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK';
-const GRANTEE = 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH';
+// Every authorization path reads revocation from an injected registry; these
+// tests share one and pass it unless a test supplies its own.
+const revocationRegistry = new InMemoryRevocationRegistry();
+const evaluateCapabilityAccess: typeof evaluateCapabilityAccessRaw = (input) =>
+  evaluateCapabilityAccessRaw({ ...input, registries: { revocationRegistry, ...input.registries } });
+
+
+// Consents in these tests are signed by their subject; unsigned consents authorize nothing.
+const buildConsentObject: typeof buildUnsignedConsentObject = (...args) =>
+  signTestConsent(buildUnsignedConsentObject(...args));
+
+const SUBJECT = testSubjectSigner('subject').did;
+const GRANTEE = testSubjectSigner('grantee').did;
 const CONTENT_REF = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const PACK_REF = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 const CONSENT_NOW = new Date('2025-01-15T14:30:00Z');
@@ -113,9 +126,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('denies malformed capability objects', () => {
-    const { capability } = buildCapability({ permissions: [] });
+    const { capability, consent } = buildCapability({ permissions: [] });
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: { type: 'content', ref: CONTENT_REF },
       now: '2025-08-01T00:00:00Z'
@@ -126,9 +140,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('denies inactive capabilities', () => {
-    const { capability } = buildCapability({ status: 'inactive' });
+    const { capability, consent } = buildCapability({ status: 'inactive' });
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: { type: 'content', ref: CONTENT_REF },
       now: '2025-08-01T00:00:00Z'
@@ -159,9 +174,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('denies expired capabilities', () => {
-    const { capability } = buildCapability();
+    const { capability, consent } = buildCapability();
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: { type: 'content', ref: CONTENT_REF },
       now: '2026-01-01T00:00:00Z'
@@ -206,9 +222,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('denies invalid requested actions as structurally invalid input', () => {
-    const { capability } = buildCapability();
+    const { capability, consent } = buildCapability();
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'write',
       resource: { type: 'content', ref: CONTENT_REF },
       now: '2025-08-01T00:00:00Z'
@@ -218,9 +235,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('denies exact non-granted but valid requested actions with ACTION_NOT_ALLOWED', () => {
-    const { capability } = buildCapability();
+    const { capability, consent } = buildCapability();
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'share',
       resource: { type: 'content', ref: CONTENT_REF },
       now: '2025-08-01T00:00:00Z'
@@ -282,9 +300,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('denies resource mismatch', () => {
-    const { capability } = buildCapability();
+    const { capability, consent } = buildCapability();
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: { type: 'content', ref: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' },
       now: '2025-08-01T00:00:00Z'
@@ -294,9 +313,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('allows exact resource string matches', () => {
-    const { capability } = buildCapability();
+    const { capability, consent } = buildCapability();
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: `content:${CONTENT_REF}`,
       now: '2025-08-01T00:00:00Z'
@@ -306,9 +326,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('allows when a bound market maker matches', () => {
-    const { capability } = buildCapability({ marketMakerId: 'hrkey-v1' });
+    const { capability, consent } = buildCapability({ marketMakerId: 'hrkey-v1' });
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: `content:${CONTENT_REF}`,
       marketMakerId: 'hrkey-v1',
@@ -321,9 +342,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('denies when a bound market maker is missing', () => {
-    const { capability } = buildCapability({ marketMakerId: 'hrkey-v1' });
+    const { capability, consent } = buildCapability({ marketMakerId: 'hrkey-v1' });
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: `content:${CONTENT_REF}`,
       marketMakerRegistry: buildTrustedMarketMakerRegistry('hrkey-v1'),
@@ -334,9 +356,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('denies when a bound market maker cannot be verified because no registry was provided', () => {
-    const { capability } = buildCapability({ marketMakerId: 'hrkey-v1' });
+    const { capability, consent } = buildCapability({ marketMakerId: 'hrkey-v1' });
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: `content:${CONTENT_REF}`,
       now: '2025-08-01T00:00:00Z'
@@ -350,10 +373,11 @@ describe('evaluateCapabilityAccess', () => {
 
   it('denies capabilities with an unknown but structurally valid market maker when a registry is enforced', () => {
     const registry = new MarketMakerRegistry();
-    const { capability } = buildCapability({ marketMakerId: 'hrkey-v1' });
+    const { capability, consent } = buildCapability({ marketMakerId: 'hrkey-v1' });
 
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: `content:${CONTENT_REF}`,
       marketMakerId: 'hrkey-v1',
@@ -376,10 +400,11 @@ describe('evaluateCapabilityAccess', () => {
       status: 'deprecated',
       created_at: '2025-01-15T00:00:00Z'
     });
-    const { capability } = buildCapability({ marketMakerId: 'hrkey-v1' });
+    const { capability, consent } = buildCapability({ marketMakerId: 'hrkey-v1' });
 
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: `content:${CONTENT_REF}`,
       marketMakerId: 'hrkey-v1',
@@ -402,10 +427,11 @@ describe('evaluateCapabilityAccess', () => {
       status: 'revoked',
       created_at: '2025-01-15T00:00:00Z'
     });
-    const { capability } = buildCapability({ marketMakerId: 'hrkey-v1' });
+    const { capability, consent } = buildCapability({ marketMakerId: 'hrkey-v1' });
 
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: `content:${CONTENT_REF}`,
       marketMakerId: 'hrkey-v1',
@@ -428,10 +454,11 @@ describe('evaluateCapabilityAccess', () => {
       status: 'active',
       created_at: '2025-01-15T00:00:00Z'
     });
-    const { capability } = buildCapability({ marketMakerId: 'hrkey-v1' });
+    const { capability, consent } = buildCapability({ marketMakerId: 'hrkey-v1' });
 
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: `content:${CONTENT_REF}`,
       marketMakerId: 'hrkey-v1',
@@ -444,9 +471,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('denies when a bound market maker mismatches', () => {
-    const { capability } = buildCapability({ marketMakerId: 'hrkey-v1' });
+    const { capability, consent } = buildCapability({ marketMakerId: 'hrkey-v1' });
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: `content:${CONTENT_REF}`,
       marketMakerId: 'other-maker',
@@ -541,9 +569,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('denies malformed timestamps fail-closed', () => {
-    const { capability } = buildCapability({ expires_at: 'not-a-time' });
+    const { capability, consent } = buildCapability({ expires_at: 'not-a-time' });
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: `content:${CONTENT_REF}`,
       now: '2025-08-01T00:00:00Z'
@@ -553,9 +582,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('denies when usage or policy hooks deny', () => {
-    const { capability } = buildCapability();
+    const { capability, consent } = buildCapability();
     const usageDecision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: `content:${CONTENT_REF}`,
       now: '2025-08-01T00:00:00Z',
@@ -571,6 +601,7 @@ describe('evaluateCapabilityAccess', () => {
 
     const policyDecision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: `content:${CONTENT_REF}`,
       now: '2025-08-01T00:00:00Z',
@@ -634,9 +665,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('fails closed with usage-stage INTERNAL_EVALUATION_ERROR when the usage hook throws', () => {
-    const { capability } = buildCapability();
+    const { capability, consent } = buildCapability();
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: `content:${CONTENT_REF}`,
       now: '2025-08-01T00:00:00Z',
@@ -653,9 +685,10 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('fails closed with policy-stage INTERNAL_EVALUATION_ERROR when the policy hook throws', () => {
-    const { capability } = buildCapability();
+    const { capability, consent } = buildCapability();
     const decision = evaluateCapabilityAccess({
       capability,
+      consent,
       action: 'read',
       resource: `content:${CONTENT_REF}`,
       now: '2025-08-01T00:00:00Z',
@@ -672,7 +705,7 @@ describe('evaluateCapabilityAccess', () => {
   });
 
   it('denies when supplied consent mismatches capability provenance', () => {
-    const { capability } = buildCapability();
+    const { capability, consent } = buildCapability();
     const otherConsent = buildConsentObject(
       SUBJECT,
       GRANTEE,

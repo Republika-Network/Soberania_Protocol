@@ -62,8 +62,21 @@ export type RevocationEvidenceRecord = {
   requester_id: string;
   reason_code: string;
   idempotency_key?: string;
+  /** Owner of the authenticated authority that revoked the grant. */
+  revoked_by: string;
   requested_at: string;
   completed_at: string;
+};
+
+/**
+ * The authenticated party asking for the revocation (the hosted runtime derives it from the API
+ * key, never from the request body). It may revoke a grant only if it is an admin or one of its
+ * principals is that grant's subject or requester.
+ */
+export type RevokeGrantAuthority = {
+  owner: string;
+  principals: readonly string[];
+  admin?: boolean;
 };
 
 export type RevokeGrantInput = {
@@ -72,6 +85,7 @@ export type RevokeGrantInput = {
   requester_id?: string;
   reason?: string;
   idempotency_key?: string;
+  authority: RevokeGrantAuthority;
 };
 
 export type RevokeGrantResult = {
@@ -93,6 +107,20 @@ export class RevocationIdempotencyConflictError extends Error {
   constructor(idempotencyKey: string) {
     super(`IDEMPOTENCY_CONFLICT:${idempotencyKey}`);
     this.name = 'RevocationIdempotencyConflictError';
+  }
+}
+
+export class AccessGrantRevocationUnauthorizedError extends Error {
+  constructor(grantId: string) {
+    super(`ACCESS_GRANT_REVOCATION_UNAUTHORIZED:${grantId}`);
+    this.name = 'AccessGrantRevocationUnauthorizedError';
+  }
+}
+
+export class AccessGrantRequesterMismatchError extends Error {
+  constructor(grantId: string) {
+    super(`ACCESS_GRANT_REQUESTER_MISMATCH:${grantId}`);
+    this.name = 'AccessGrantRequesterMismatchError';
   }
 }
 
@@ -125,6 +153,20 @@ function fingerprintRevokeInput(input: RevokeGrantInput): string {
     subject_id: input.subject_id ?? null,
     requester_id: input.requester_id ?? null,
   });
+}
+
+/**
+ * Idempotency keys are scoped to the authenticated revoker: the same key used by two different
+ * callers names two different replays, so nobody can squat a key and block or read another
+ * party's revocation. Within one revoker, the fingerprint still detects a reused key.
+ */
+function idempotencyScope(authority: RevokeGrantAuthority, idempotencyKey: string): string {
+  return `${authority.owner}\u0000${idempotencyKey}`;
+}
+
+function hasAuthorityOver(authority: RevokeGrantAuthority, grant: GrantedAccess): boolean {
+  if (authority.admin === true) return true;
+  return authority.principals.includes(grant.subject_id) || authority.principals.includes(grant.requester_id);
 }
 
 export type CreateAccessRequestInput = Omit<AccessRequest, 'request_id' | 'status' | 'created_at' | 'updated_at'>;
@@ -215,26 +257,22 @@ export class ControlPlaneService {
       idempotencyKeyPresent: input.idempotency_key !== undefined,
     });
 
-    const fingerprint = fingerprintRevokeInput(input);
-
-    if (input.idempotency_key !== undefined) {
-      const cached = this.revocationIdempotency.get(input.idempotency_key);
-      if (cached) {
-        if (cached.fingerprint !== fingerprint) {
-          emitRevocationTelemetry(this.telemetry, REVOCATION_TELEMETRY_EVENTS.IDEMPOTENCY_CONFLICT, {
-            operation: 'revokeGrant',
-            idempotencyKey: input.idempotency_key,
-          });
-          throw new RevocationIdempotencyConflictError(input.idempotency_key);
-        }
-        emitRevocationTelemetry(this.telemetry, REVOCATION_TELEMETRY_EVENTS.IDEMPOTENCY_REPLAYED, {
-          operation: 'revokeGrant',
-          grantId: cached.result.grant.grant_id,
-          revocationId: cached.result.revocationId,
-        });
-        return { ...cached.result, idempotentReplay: true };
-      }
+    if (
+      !input.authority ||
+      typeof input.authority.owner !== 'string' ||
+      input.authority.owner === '' ||
+      !Array.isArray(input.authority.principals)
+    ) {
+      emitRevocationTelemetry(this.telemetry, REVOCATION_TELEMETRY_EVENTS.COMMAND_FAILED, {
+        operation: 'revokeGrant',
+        grantId: input.grant_id,
+        reason: 'no_authority',
+      });
+      throw new AccessGrantRevocationUnauthorizedError(input.grant_id);
     }
+
+    const fingerprint = fingerprintRevokeInput(input);
+    const scopedKey = input.idempotency_key !== undefined ? idempotencyScope(input.authority, input.idempotency_key) : undefined;
 
     const grant = this.grants.get(input.grant_id);
     if (!grant) {
@@ -246,6 +284,25 @@ export class ControlPlaneService {
       throw new AccessGrantNotFoundError(input.grant_id);
     }
 
+    // Authority is checked against the stored grant, never against identifiers the caller named.
+    if (!hasAuthorityOver(input.authority, grant)) {
+      emitRevocationTelemetry(this.telemetry, REVOCATION_TELEMETRY_EVENTS.COMMAND_FAILED, {
+        operation: 'revokeGrant',
+        grantId: input.grant_id,
+        reason: 'unauthorized',
+      });
+      throw new AccessGrantRevocationUnauthorizedError(input.grant_id);
+    }
+
+    if (input.requester_id !== undefined && input.requester_id !== grant.requester_id) {
+      emitRevocationTelemetry(this.telemetry, REVOCATION_TELEMETRY_EVENTS.COMMAND_FAILED, {
+        operation: 'revokeGrant',
+        grantId: input.grant_id,
+        reason: 'requester_mismatch',
+      });
+      throw new AccessGrantRequesterMismatchError(input.grant_id);
+    }
+
     if (input.subject_id !== undefined && input.subject_id !== grant.subject_id) {
       emitRevocationTelemetry(this.telemetry, REVOCATION_TELEMETRY_EVENTS.COMMAND_FAILED, {
         operation: 'revokeGrant',
@@ -253,6 +310,26 @@ export class ControlPlaneService {
         reason: 'subject_mismatch',
       });
       throw new AccessRequestSubjectMismatchError(input.grant_id);
+    }
+
+    // Only now, with authority over the stored grant established, may a cached result be replayed.
+    if (scopedKey !== undefined) {
+      const cached = this.revocationIdempotency.get(scopedKey);
+      if (cached) {
+        if (cached.fingerprint !== fingerprint) {
+          emitRevocationTelemetry(this.telemetry, REVOCATION_TELEMETRY_EVENTS.IDEMPOTENCY_CONFLICT, {
+            operation: 'revokeGrant',
+            idempotencyKey: input.idempotency_key,
+          });
+          throw new RevocationIdempotencyConflictError(input.idempotency_key ?? scopedKey);
+        }
+        emitRevocationTelemetry(this.telemetry, REVOCATION_TELEMETRY_EVENTS.IDEMPOTENCY_REPLAYED, {
+          operation: 'revokeGrant',
+          grantId: cached.result.grant.grant_id,
+          revocationId: cached.result.revocationId,
+        });
+        return { ...cached.result, idempotentReplay: true };
+      }
     }
 
     // Already revoked: return the original, stable result. Repeated revoke calls must never move
@@ -266,8 +343,8 @@ export class ControlPlaneService {
           this.revocationEvidence.find((record) => record.grant_id === grant.grant_id)?.evidence_record_id ?? 'unknown',
         completedAt: grant.revoked_at ?? requestedAt,
       };
-      if (input.idempotency_key !== undefined) {
-        this.revocationIdempotency.set(input.idempotency_key, { fingerprint, result: stableResult });
+      if (scopedKey !== undefined) {
+        this.revocationIdempotency.set(scopedKey, { fingerprint, result: stableResult });
       }
       emitRevocationTelemetry(this.telemetry, REVOCATION_TELEMETRY_EVENTS.IDEMPOTENCY_REPLAYED, {
         operation: 'revokeGrant',
@@ -299,6 +376,7 @@ export class ControlPlaneService {
       requester_id: grant.requester_id,
       reason_code: reasonCode,
       idempotency_key: input.idempotency_key,
+      revoked_by: input.authority.owner,
       requested_at: requestedAt,
       completed_at: completedAt,
     });
@@ -312,8 +390,8 @@ export class ControlPlaneService {
       completedAt,
     };
 
-    if (input.idempotency_key !== undefined) {
-      this.revocationIdempotency.set(input.idempotency_key, { fingerprint, result });
+    if (scopedKey !== undefined) {
+      this.revocationIdempotency.set(scopedKey, { fingerprint, result });
     }
 
     emitRevocationTelemetry(this.telemetry, REVOCATION_TELEMETRY_EVENTS.COMMAND_COMPLETED, {

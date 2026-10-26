@@ -507,6 +507,24 @@ When evaluating authorization:
 2. Operations authorized before revocation remain historically valid.
 3. Backdating `issued_at` to retroactively revoke consent is NOT valid.
 
+### 5.6 Reference Implementation Notes
+
+1. A revoke consent revokes the consent identified by `prior_consent`, and with it every
+   capability token that references that consent (`consent_ref`), however and wherever the token
+   was produced. `revoke_target.capability_hash` names one such token for audit; it does not narrow
+   the revocation, because tokens are bearer objects that any holder of the consent can mint again.
+2. The implementation (`vault/vault.ts`, `capability/revocation.ts`) accepts a revocation only when
+   it carries the subject's proof (§10.2), `prior_consent` names a stored grant consent with the
+   same subject and grantee, `issued_at` is not earlier than that consent's, and a named token the
+   implementation knows belongs to that consent. The revocation is recorded in the revocation
+   registry before the call returns.
+3. Authorization reads revocation from the registry only: once a consent is revoked, every
+   evaluation denies regardless of the evaluation time a caller supplies. Rule 5.5(2) is an audit
+   statement, not a way to re-admit requests by presenting an earlier time.
+4. Partial revocation (§5.4) is not implemented: revoke consents carry an empty scope and withdraw
+   the whole consent. Revoking a single token hash is an operator containment action, separate from
+   subject revocation, and never revokes the consent.
+
 ---
 
 ## 6. Canonicalization Rules
@@ -843,6 +861,16 @@ INV-IMM-02: modification(consent) → new_consent_hash
 2. Signature verification MUST succeed before authorization is granted.
 3. Signature algorithm and format are outside this specification's scope.
 4. Implementations MUST support signature verification without network access.
+
+Reference implementation (`consent/proof.ts`, `consent/signing.ts`): the subject is an
+Ed25519 `did:key`, and the verification key is resolved from the subject DID itself. The
+signature is a detached `subject_proof` (`type: "AocSubjectConsentProof"`, `version: 1`,
+`alg: "Ed25519"`, `statement: "consent-object/v1"`, `verification_method`, `content_hash`,
+`signature`), excluded from the canonical payload so that `consent_hash` is unchanged. The
+signed bytes are the canonical JSON of the proof header together with the full canonical consent
+content and its SHA-256 hash. A consent without a valid proof is legacy data and MUST NOT
+authorize access, minting, consumption or revocation. A revoke consent MUST be signed by the
+subject of the revoked capability and name that capability's consent in `prior_consent`.
 
 ### 10.3 Hash Security
 

@@ -16,7 +16,16 @@ export {
   validateConsentObject
 } from '../../consent/consentObject';
 
+export {
+  signConsentObject,
+  verifyConsentObjectProof
+} from '../../consent/signing';
+export { createDidKeySigner, didKeyFromEd25519Key } from '../../consent/proof';
+export type { ConsentSubjectSigner, SubjectConsentProofV1 } from '../../consent/proof';
+
 export { MarketMakerRegistry } from '../capabilities/market/marketMakerRegistry';
+export { InMemoryRevocationRegistry } from '../../capability/registries/InMemoryRevocationRegistry';
+export type { RevocationRegistry, ConsentRevocationRecord } from '../../capability/registries/RevocationRegistry';
 export {
   executeCapabilityFlow
 } from './executeCapabilityFlow';

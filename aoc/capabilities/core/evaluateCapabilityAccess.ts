@@ -1,4 +1,6 @@
 import { capabilityAccessReasonCodes } from './reasonCodes';
+import { readRevocation } from '../../../capability/revocation';
+import { verifyConsentObjectProof } from '../../../consent/signing';
 import {
   allowDecision,
   classifyIntegrityError,
@@ -31,8 +33,38 @@ function makeChecks(): CapabilityAccessChecks {
 function evaluateConsentBinding(
   input: NormalizedCapabilityAccessRequest
 ): CapabilityAccessDecision | null {
+  // A capability is only as good as the consent it was minted from. Without the
+  // parent consent, nothing ties the capability's scope or permissions to what
+  // the subject granted, so access is denied.
   if (!input.consent) {
-    return null;
+    return denyDecision(
+      input.evaluatedAt,
+      capabilityAccessReasonCodes.CONSENT_INVALID,
+      'Parent consent is required for capability access.',
+      makeChecks(),
+      {
+        failureStage: 'integrity',
+        capabilityHash: input.capability.capabilityHash,
+        consentRef: input.capability.consentRef
+      }
+    );
+  }
+
+  // Only a consent signed by its subject grants anything. Unsigned (legacy) or
+  // tampered consents are denied before any of their content is trusted.
+  const proof = verifyConsentObjectProof(input.consent);
+  if (!proof.valid) {
+    return denyDecision(
+      input.evaluatedAt,
+      capabilityAccessReasonCodes.CONSENT_UNAUTHENTICATED,
+      proof.reason,
+      makeChecks(),
+      {
+        failureStage: 'integrity',
+        capabilityHash: input.capability.capabilityHash,
+        consentRef: input.capability.consentRef
+      }
+    );
   }
 
   if (input.consent.action !== 'grant') {
@@ -107,6 +139,56 @@ function evaluateConsentBinding(
         consentMarketMakerId: input.consent.marketMakerId
       }
     );
+  }
+
+  const containmentFailure = findConsentContainmentFailure(input.capability, input.consent);
+  if (containmentFailure) {
+    return denyDecision(
+      input.evaluatedAt,
+      capabilityAccessReasonCodes.CONSENT_MISMATCH,
+      containmentFailure,
+      makeChecks(),
+      {
+        failureStage: 'integrity',
+        capabilityHash: input.capability.capabilityHash,
+        consentRef: input.capability.consentRef
+      }
+    );
+  }
+
+  return null;
+}
+
+/**
+ * The capability may only narrow its parent consent: every scope entry and
+ * permission must be granted by the consent, and the capability must not start
+ * before the consent was issued.
+ */
+function findConsentContainmentFailure(
+  capability: NormalizedCapabilityAccessRequest['capability'],
+  consent: NonNullable<NormalizedCapabilityAccessRequest['consent']>
+): string | null {
+  const consentScope = new Set(consent.scope.map((entry) => `${entry.type}:${entry.ref}`));
+  for (const entry of capability.scope) {
+    if (!consentScope.has(`${entry.type}:${entry.ref}`)) {
+      return 'Capability scope is not covered by the parent consent.';
+    }
+  }
+
+  const consentPermissions = new Set(consent.permissions);
+  for (const permission of capability.permissions) {
+    if (!consentPermissions.has(permission)) {
+      return 'Capability permissions are not covered by the parent consent.';
+    }
+  }
+
+  const consentIssuedAt = Date.parse(consent.issued_at);
+  const rawIssuedAt = (capability.raw as Record<string, unknown>).issued_at;
+  const startTimes = [capability.notBefore, typeof rawIssuedAt === 'string' ? rawIssuedAt : null];
+  for (const start of startTimes) {
+    if (start !== null && !(Date.parse(start) >= consentIssuedAt)) {
+      return 'Capability validity starts before the parent consent was issued.';
+    }
   }
 
   return null;
@@ -273,6 +355,42 @@ export function evaluateCapabilityAccess(
 
     if (consentDecision) {
       return consentDecision;
+    }
+
+    // Revocation is read from the injected registry only. A revoked consent
+    // withdraws every capability that references it; a revoked capability hash
+    // is operator containment of that one token. No registry means no decision.
+    const revocation = readRevocation(normalized.revocationRegistry, {
+      capability_hash: normalized.capability.capabilityHash ?? '',
+      consent_hash: normalized.consent!.consent_hash
+    });
+    if (revocation.state !== 'clear') {
+      const revocationMetadata = {
+        failureStage: 'revocation' as const,
+        capabilityHash: normalized.capability.capabilityHash,
+        tokenId: normalized.capability.tokenId,
+        consentRef: normalized.capability.consentRef
+      };
+      if (revocation.state === 'unavailable') {
+        return denyDecision(
+          evaluatedAt,
+          capabilityAccessReasonCodes.REVOCATION_UNAVAILABLE,
+          `Revocation status could not be determined: ${revocation.reason}`,
+          checks,
+          revocationMetadata
+        );
+      }
+      return denyDecision(
+        evaluatedAt,
+        revocation.state === 'revoked_consent'
+          ? capabilityAccessReasonCodes.CONSENT_REVOKED
+          : capabilityAccessReasonCodes.CAPABILITY_REVOKED,
+        revocation.state === 'revoked_consent'
+          ? 'Parent consent has been revoked by its subject.'
+          : 'Capability token has been revoked.',
+        checks,
+        revocationMetadata
+      );
     }
 
     try {

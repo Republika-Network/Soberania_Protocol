@@ -1,14 +1,19 @@
-import { buildConsentObject } from '../../../consent';
+import { buildConsentObject as buildUnsignedConsentObject } from '../../../consent';
 import {
-  evaluateCapabilityAccess,
+  projectCapabilityScopeMatch,
   evaluateCapabilityState,
   mintCapability,
   verifyCapability,
 } from '..';
 import { createStaticRevocationCheck, revokedStatus, verifiedNotRevokedStatus } from '../../revocation';
+import { testSubjectSigner, signTestConsent } from '../../../tests/helpers/consentSigning';
 
-const SUBJECT = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK';
-const GRANTEE = 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH';
+// Consents in these tests are signed by their subject; unsigned consents authorize nothing.
+const buildConsentObject: typeof buildUnsignedConsentObject = (...args) =>
+  signTestConsent(buildUnsignedConsentObject(...args));
+
+const SUBJECT = testSubjectSigner('subject').did;
+const GRANTEE = testSubjectSigner('grantee').did;
 const REF_A = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const REF_B = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
@@ -193,7 +198,7 @@ describe('protocol capability lifecycle', () => {
 
     expect(state.state).toBe('revocation_unknown');
     expect(
-      evaluateCapabilityAccess(capability, {
+      projectCapabilityScopeMatch(capability, {
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
         now: new Date('2026-02-15T00:00:00Z'),
@@ -206,7 +211,7 @@ describe('protocol capability lifecycle', () => {
     const capability = mintFixture();
 
     expect(
-      evaluateCapabilityAccess(capability, {
+      projectCapabilityScopeMatch(capability, {
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
         subject: SUBJECT,
@@ -222,7 +227,7 @@ describe('protocol capability lifecycle', () => {
     const capability = mintFixture();
 
     expect(
-      evaluateCapabilityAccess(capability, {
+      projectCapabilityScopeMatch(capability, {
         requested_scope: [{ type: 'pack', ref: REF_B }],
         requested_permissions: ['read'],
         now: new Date('2026-02-15T00:00:00Z'),
@@ -235,7 +240,7 @@ describe('protocol capability lifecycle', () => {
     const capability = mintFixture();
 
     expect(
-      evaluateCapabilityAccess(capability, {
+      projectCapabilityScopeMatch(capability, {
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['derive'],
         now: new Date('2026-02-15T00:00:00Z'),
@@ -248,7 +253,7 @@ describe('protocol capability lifecycle', () => {
     const capability = mintFixture();
 
     expect(
-      evaluateCapabilityAccess(capability, {
+      projectCapabilityScopeMatch(capability, {
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
         subject: 'did:key:z6MkDifferentSubject1234567890abc',

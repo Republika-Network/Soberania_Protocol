@@ -21,8 +21,8 @@ concrete implementation of the sprint's central rule:
 
 | Subject type | Canonical owner in this repo today | Revocation effect | Cascade target | Reversible |
 |---|---|---|---|---|
-| `capability_grant` | `capability/revocation.ts` (hash registry), wrapped by `protocol/revocation` | Redemption/enforcement/execution denied | None modeled — capability tokens don't reference a passport/identity chain in this codebase | No |
-| `consent_grant` | `protocol/consent` (in-process; no registry backs it yet) | Minting new capabilities from the consent blocked; `evaluateConsentState` returns `revoked` | Capabilities already minted from it are **not** retroactively invalidated — see `06-cascade-design.md` limitation | No |
+| `capability_grant` | `capability/registries/RevocationRegistry.ts` (`revoke`/`isRevoked`), wrapped by `protocol/revocation` `createCapabilityRevocationCheck` | Redemption/enforcement/execution of that one token hash denied. Operator containment only: the consent that issued it stays usable | None modeled — capability tokens don't reference a passport/identity chain in this codebase | No |
+| `consent_grant` | The same registry (`revokeConsent`/`isConsentRevoked`), written by `vault.applyConsent` from a subject-signed revoke consent | Every capability that references the consent (`consent_ref` / `parent_consent_hash`) denied on every path (vault, verify, evaluate, consume, interpreter, protocol mint/enforce/execute, hosted routes); new mints blocked. Time-independent: a caller-supplied evaluation time cannot re-admit it | Reached by key, not by index: each token carries its consent hash, so no reverse index is needed | No |
 | `agent_identity`, `agent_passport`, `public_key`, `credential`, `delegation`, `execution_grant`, `service_identity`, `issuer_authority`, `trust_domain_membership` | Not implemented — no real store exists for these subjects in this codebase | N/A | N/A | N/A |
 
 The type is intentionally a superset of what's implemented today (per ADR §1's ownership list) so

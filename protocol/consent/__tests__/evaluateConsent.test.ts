@@ -1,14 +1,26 @@
 import {
-  evaluateConsent,
+  evaluateConsent as evaluateConsentRaw,
   CONSENT_DECISION_REASON_CODES,
   type ConsentRecord,
   type ConsentRequest,
 } from '..';
+import { signTestConsentRecord, testSubjectSigner } from '../../../tests/helpers/consentSigning';
+import { createStaticRevocationCheck as staticRevocationCheck03F, verifiedNotRevokedStatus as notRevokedStatus03F } from '../../revocation';
+
+// Consent-record decisions read revocation from an explicit port; these tests use one that answers
+// "verified not revoked" unless a test supplies its own.
+const consentRecordsNotRevoked = { checkRevocation: staticRevocationCheck03F(notRevokedStatus03F({ subjectId: 'fixture', subjectType: 'consent_grant' })) };
+const evaluateConsent = (request: unknown, consent: unknown, options = consentRecordsNotRevoked) =>
+  evaluateConsentRaw(request, consent, options);
+
+
+// Consent records are signed by their subject; unsigned records grant nothing.
+const SUBJECT_ID = testSubjectSigner('record-subject').did;
 
 function buildValidConsent(overrides: Partial<ConsentRecord> = {}): ConsentRecord {
-  return {
+  return signTestConsentRecord({
     consent_id: 'consent-123',
-    subject_id: 'subject-1',
+    subject_id: SUBJECT_ID,
     requester_id: 'requester-1',
     resource: 'resource:profile',
     actions: ['read', 'share'],
@@ -19,12 +31,12 @@ function buildValidConsent(overrides: Partial<ConsentRecord> = {}): ConsentRecor
     consent_hash: 'hash-abc',
     metadata: { source: 'test' },
     ...overrides,
-  };
+  });
 }
 
 function buildValidRequest(overrides: Partial<ConsentRequest> = {}): ConsentRequest {
   return {
-    subject_id: 'subject-1',
+    subject_id: SUBJECT_ID,
     requester_id: 'requester-1',
     resource: 'resource:profile',
     action: 'read',

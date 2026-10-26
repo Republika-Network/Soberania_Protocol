@@ -51,3 +51,15 @@ node_modules/
 
 # Frontend app source directory – Vite bundles; tsc is typecheck-only (noEmit)
 /frontend/app/src/**/*.js
+
+# Workspace packages compile src/ → dist/ (rootDir: src). Compiled files beside
+# the .ts sources, and a nested dist/src/, are stale artifacts.
+packages/*/src/**/*.js
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.d.ts.map
+!packages/protocol/src/node-compat.d.ts
+examples/*/src/**/*.js
+examples/*/src/**/*.d.ts
+examples/*/src/**/*.d.ts.map
+packages/*/dist/src/
+examples/*/dist/src/

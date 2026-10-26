@@ -1,4 +1,4 @@
-import { buildConsentObject } from '../../../consent';
+import { buildConsentObject as buildUnsignedConsentObject } from '../../../consent';
 import {
   doesConsentAllowScope,
   evaluateConsentState,
@@ -14,9 +14,14 @@ import {
   revokedStatus,
   verifiedNotRevokedStatus,
 } from '../../revocation';
+import { testSubjectSigner, signTestConsent } from '../../../tests/helpers/consentSigning';
 
-const SUBJECT = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK';
-const GRANTEE = 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH';
+// Consents in these tests are signed by their subject; unsigned consents authorize nothing.
+const buildConsentObject: typeof buildUnsignedConsentObject = (...args) =>
+  signTestConsent(buildUnsignedConsentObject(...args));
+
+const SUBJECT = testSubjectSigner('subject').did;
+const GRANTEE = testSubjectSigner('grantee').did;
 const REF_A = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
 const notRevoked = createStaticRevocationCheck(

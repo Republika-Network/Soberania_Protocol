@@ -41,6 +41,7 @@ export function authorizeExecution(
   const enforcementDecision = evaluateEnforcement(
     {
       capability: normalizedRequest.capability,
+      consent: normalizedRequest.consent,
       requested_scope: normalizedRequest.requested_scope,
       requested_permissions: normalizedRequest.requested_permissions,
       subject: normalizedRequest.subject,

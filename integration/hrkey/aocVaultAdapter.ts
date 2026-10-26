@@ -16,7 +16,9 @@
 
 import { createInMemoryVault } from '../../vault';
 import type { Vault } from '../../vault';
+import type { ContentOwnershipAuthority } from '../../vault/contentOwnership';
 import { buildConsentObject } from '../../consent';
+import type { ConsentObjectV1 } from '../../consent';
 import { normalizeConsent, parseConsent, validateConsent } from '../../protocol/consent';
 
 import type {
@@ -25,6 +27,7 @@ import type {
   RegisterPackResult,
   GrantConsentInput,
   GrantConsentResult,
+  SignedConsentInput,
   MintCapabilityInput,
   MintCapabilityResult,
   AccessRequestInput,
@@ -38,16 +41,29 @@ import type { VaultAccessResult } from '../../vault';
  * Create an HRKey vault adapter backed by an in-memory AOC Vault.
  *
  * Usage:
- *   const adapter = createHRKeyAdapter();
+ *   const adapter = createHRKeyAdapter({ trustDomain, contentOwnership });
  *   adapter.registerPack({ pack, sdl_mappings });
- *   adapter.grantConsent({ candidate, employer, scope, permissions, expires_at });
+ *   const unsigned = adapter.prepareConsent({ candidate, employer, scope, permissions, expires_at });
+ *   // the candidate's wallet signs it: signConsentObject(unsigned, candidateSigner)
+ *   adapter.grantConsent({ consent: signedByCandidate });
  *   // ...
  *
  * For testing, pass an existing Vault instance to share state
  * across test helpers without exposing Vault internals to HRKey code.
  */
-export function createHRKeyAdapter(vault?: Vault): IHRKeyVaultAdapter {
-  const v: Vault = vault ?? createInMemoryVault();
+export type HRKeyAdapterOptions = {
+  /** An existing Vault to share state with (tests); it must carry its own ownership authority. */
+  vault?: Vault;
+  /** The trust domain (tenant) and the content ownership authority that answers for it. */
+  trustDomain?: string;
+  contentOwnership?: ContentOwnershipAuthority;
+};
+
+export function createHRKeyAdapter(options: HRKeyAdapterOptions | Vault = {}): IHRKeyVaultAdapter {
+  const given = 'storePack' in options ? { vault: options as Vault } : (options as HRKeyAdapterOptions);
+  // Without an ownership authority the vault stores consents and mints, but
+  // refuses every pack: HRKey cannot vouch for content ownership by itself.
+  const v: Vault = given.vault ?? createInMemoryVault({ trustDomain: given.trustDomain, contentOwnership: given.contentOwnership });
 
   // ── registerPack ────────────────────────────────────────────────
 
@@ -69,16 +85,17 @@ export function createHRKeyAdapter(vault?: Vault): IHRKeyVaultAdapter {
     };
   }
 
-  // ── grantConsent ────────────────────────────────────────────────
+  // ── prepareConsent / grantConsent ───────────────────────────────
 
-  function grantConsent(
+  function prepareConsent(
     input: GrantConsentInput,
     opts?: { now?: Date },
-  ): GrantConsentResult {
+  ): ConsentObjectV1 {
     const { candidate, employer, scope, permissions, expires_at } = input;
 
-    // Build the consent object (AOC validates all invariants).
-    const consent = buildConsentObject(
+    // Build the consent object (AOC validates all invariants). It is unsigned:
+    // the candidate's wallet must sign it before it grants anything.
+    return buildConsentObject(
       candidate,
       employer,
       'grant',
@@ -89,6 +106,14 @@ export function createHRKeyAdapter(vault?: Vault): IHRKeyVaultAdapter {
         expires_at,
       },
     );
+  }
+
+  function grantConsent(input: SignedConsentInput): GrantConsentResult {
+    const { consent } = input;
+
+    if (consent.action !== 'grant') {
+      throw new Error('grantConsent requires a grant consent.');
+    }
 
     // Transitional adapter step while HRKey migrates to protocol consent core:
     // fail-closed before persistence if consent cannot be parsed/validated.
@@ -102,7 +127,7 @@ export function createHRKeyAdapter(vault?: Vault): IHRKeyVaultAdapter {
       );
     }
 
-    // Store in Vault (Vault validates structure).
+    // Store in Vault. The Vault refuses consents not signed by their subject.
     const consent_hash = v.storeConsent(normalizedConsent);
 
     return { consent_hash, consent: normalizedConsent };
@@ -158,19 +183,25 @@ export function createHRKeyAdapter(vault?: Vault): IHRKeyVaultAdapter {
     );
   }
 
-  // ── revokeCapability ────────────────────────────────────────────
+  // ── revokeConsent ───────────────────────────────────────────────
 
-  function revokeCapability(capability_hash: string): void {
-    v.revokeCapability(capability_hash);
+  function revokeConsent(input: SignedConsentInput): void {
+    if (input.consent.action !== 'revoke') {
+      throw new Error('revokeConsent requires a revoke consent.');
+    }
+    // The Vault checks the candidate's signature, binds the revocation to the
+    // stored consent it names, and records it before returning.
+    v.applyConsent(input.consent);
   }
 
   // ── Public interface ────────────────────────────────────────────
 
   return {
     registerPack,
+    prepareConsent,
     grantConsent,
     mintCapability,
     requestAccess,
-    revokeCapability,
+    revokeConsent,
   };
 }

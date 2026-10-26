@@ -1,20 +1,33 @@
+import * as consentBarrel from '..';
+import { authorizeWithCapability } from '../capability-authorize';
 import {
-  authorizeWithCapability,
   CAPABILITY_REASON_CODES,
   CONSENT_DECISION_REASON_CODES,
-  issueCapabilityToken,
+  issueCapabilityToken as issueCapabilityTokenRaw,
   type ConsentDecision,
   type ConsentRecord,
   type ConsentRequest,
   validateCapabilityToken,
 } from '..';
+import { signTestConsentRecord, testSubjectSigner } from '../../../tests/helpers/consentSigning';
+import { createStaticRevocationCheck as staticRevocationCheck03F, verifiedNotRevokedStatus as notRevokedStatus03F } from '../../revocation';
+
+// Consent-record decisions read revocation from an explicit port; these tests use one that answers
+// "verified not revoked" unless a test supplies its own.
+const consentRecordsNotRevoked = { checkRevocation: staticRevocationCheck03F(notRevokedStatus03F({ subjectId: 'fixture', subjectType: 'consent_grant' })) };
+const issueCapabilityToken = (input: Parameters<typeof issueCapabilityTokenRaw>[0], secret: string, options = consentRecordsNotRevoked) =>
+  issueCapabilityTokenRaw(input, secret, options);
+
+
+// Consent records are signed by their subject; unsigned records grant nothing.
+const SUBJECT_ID = testSubjectSigner('record-subject').did;
 
 const SECRET = 'test-secret';
 
 function buildConsent(overrides: Partial<ConsentRecord> = {}): ConsentRecord {
-  return {
+  return signTestConsentRecord({
     consent_id: 'consent-1',
-    subject_id: 'subject-1',
+    subject_id: SUBJECT_ID,
     requester_id: 'requester-1',
     resource: 'resource:profile',
     actions: ['read', 'share'],
@@ -24,12 +37,12 @@ function buildConsent(overrides: Partial<ConsentRecord> = {}): ConsentRecord {
     revoked_at: null,
     consent_hash: 'consent-hash-1',
     ...overrides,
-  };
+  });
 }
 
 function buildRequest(overrides: Partial<ConsentRequest> = {}): ConsentRequest {
   return {
-    subject_id: 'subject-1',
+    subject_id: SUBJECT_ID,
     requester_id: 'requester-1',
     resource: 'resource:profile',
     action: 'read',
@@ -189,8 +202,8 @@ describe('capability token validation', () => {
   });
 });
 
-describe('capability token authorization', () => {
-  it('allows when request exactly matches a valid capability token', () => {
+describe('capability token authorization (disabled path, SOBE-SEC-03J)', () => {
+  it('never allows: a request that exactly matches a valid capability token is denied CAPABILITY_PATH_DISABLED', () => {
     const token = issueCapabilityToken(
       {
         consent: buildConsent(),
@@ -202,9 +215,13 @@ describe('capability token authorization', () => {
 
     const result = authorizeWithCapability(buildRequest(), token, SECRET);
 
-    expect(result.allowed).toBe(true);
-    expect(result.reason_code).toBe(CAPABILITY_REASON_CODES.ALLOW);
+    expect(result.allowed).toBe(false);
+    expect(result.reason_code).toBe(CAPABILITY_REASON_CODES.CAPABILITY_PATH_DISABLED);
     expect(result.capability_id).toBe(token.capability_id);
+  });
+
+  it('is no longer exported from the protocol/consent barrel', () => {
+    expect((consentBarrel as Record<string, unknown>).authorizeWithCapability).toBeUndefined();
   });
 
   it('denies on requester mismatch', () => {

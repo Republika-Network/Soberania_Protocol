@@ -125,8 +125,13 @@ export function parseEnforcementRequest(input: unknown): EnforcementRequest {
     throw new EnforcementRequestParseError('Enforcement field "capability" is required.');
   }
 
+  if (!('consent' in record) || record.consent === undefined || record.consent === null) {
+    throw new EnforcementRequestParseError('Enforcement field "consent" is required.');
+  }
+
   return {
     capability: record.capability,
+    consent: record.consent,
     requested_scope: parseRequestedScope(record.requested_scope),
     requested_permissions: parseRequestedPermissions(record.requested_permissions),
     subject: parseOptionalBinding(record, 'subject'),

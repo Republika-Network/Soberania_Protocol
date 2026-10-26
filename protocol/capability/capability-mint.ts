@@ -5,6 +5,7 @@ import {
   evaluateConsentState,
 } from '../consent';
 import { CapabilityMintError } from './capability-errors';
+import { verifyConsentObjectProof } from '../../consent/signing';
 import { computeCapabilityDeterministicHash } from './capability-object';
 import type { MintCapabilityInput, ParsedConsentForCapability, ProtocolCapability } from './capability-types';
 import type { ScopeEntry } from '../consent/consent-types';
@@ -24,6 +25,11 @@ function assertConsentReady(
 
   if (!validation.valid) {
     throw new CapabilityMintError(`Consent is invalid: ${validation.errors.join(' | ')}`);
+  }
+
+  const proof = verifyConsentObjectProof(normalized);
+  if (!proof.valid) {
+    throw new CapabilityMintError(`Consent is not signed by its subject: ${proof.reason}`);
   }
 
   const state = evaluateConsentState(normalized, { now, checkRevocation });

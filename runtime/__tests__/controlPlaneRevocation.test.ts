@@ -6,6 +6,10 @@ import {
 } from '../controlPlane';
 import { REVOCATION_TELEMETRY_EVENTS } from '../../protocol/revocation';
 
+// The operator authority used by these write-path tests; revoker binding has its own suite.
+const ADMIN = { owner: 'operator', principals: [] as string[], admin: true };
+
+
 function grantFixture(service: ControlPlaneService, subjectId = 'subject-1', requesterId = 'requester-1') {
   const request = service.createAccessRequest({
     subject_id: subjectId,
@@ -26,7 +30,7 @@ describe('ControlPlaneService.revokeGrant — canonical revocation write path', 
     const service = new ControlPlaneService();
     const grant = grantFixture(service);
 
-    const result = service.revokeGrant({ grant_id: grant.grant_id, reason: 'compromised_key' });
+    const result = service.revokeGrant({ authority: ADMIN, grant_id: grant.grant_id, reason: 'compromised_key' });
 
     expect(result.grant.status).toBe('revoked');
     expect(result.grant.revoked_at).toBeDefined();
@@ -44,21 +48,21 @@ describe('ControlPlaneService.revokeGrant — canonical revocation write path', 
     const grant = grantFixture(service);
 
     expect(service.listActiveGrants({ subject_id: 'subject-1' })).toHaveLength(1);
-    service.revokeGrant({ grant_id: grant.grant_id });
+    service.revokeGrant({ authority: ADMIN, grant_id: grant.grant_id });
     expect(service.listActiveGrants({ subject_id: 'subject-1' })).toHaveLength(0);
   });
 
   it('unknown grant_id blocks with a stable error, never a silent no-op', () => {
     const service = new ControlPlaneService();
-    expect(() => service.revokeGrant({ grant_id: 'does-not-exist' })).toThrow(AccessGrantNotFoundError);
-    expect(() => service.revokeGrant({ grant_id: 'does-not-exist' })).toThrow('ACCESS_GRANT_NOT_FOUND:does-not-exist');
+    expect(() => service.revokeGrant({ authority: ADMIN, grant_id: 'does-not-exist' })).toThrow(AccessGrantNotFoundError);
+    expect(() => service.revokeGrant({ authority: ADMIN, grant_id: 'does-not-exist' })).toThrow('ACCESS_GRANT_NOT_FOUND:does-not-exist');
   });
 
   it('subject_id mismatch blocks the revoke (tenant/subject isolation)', () => {
     const service = new ControlPlaneService();
     const grant = grantFixture(service, 'subject-1');
 
-    expect(() => service.revokeGrant({ grant_id: grant.grant_id, subject_id: 'someone-else' })).toThrow(
+    expect(() => service.revokeGrant({ authority: ADMIN, grant_id: grant.grant_id, subject_id: 'someone-else' })).toThrow(
       AccessRequestSubjectMismatchError
     );
     expect(service.listActiveGrants({ subject_id: 'subject-1' })).toHaveLength(1);
@@ -69,8 +73,8 @@ describe('ControlPlaneService.revokeGrant — canonical revocation write path', 
       const service = new ControlPlaneService();
       const grant = grantFixture(service);
 
-      const first = service.revokeGrant({ grant_id: grant.grant_id, reason: 'compromised_key', idempotency_key: 'idem-1' });
-      const second = service.revokeGrant({ grant_id: grant.grant_id, reason: 'compromised_key', idempotency_key: 'idem-1' });
+      const first = service.revokeGrant({ authority: ADMIN, grant_id: grant.grant_id, reason: 'compromised_key', idempotency_key: 'idem-1' });
+      const second = service.revokeGrant({ authority: ADMIN, grant_id: grant.grant_id, reason: 'compromised_key', idempotency_key: 'idem-1' });
 
       expect(first.idempotentReplay).toBe(false);
       expect(second.idempotentReplay).toBe(true);
@@ -84,9 +88,9 @@ describe('ControlPlaneService.revokeGrant — canonical revocation write path', 
       const grantA = grantFixture(service, 'subject-a');
       const grantB = grantFixture(service, 'subject-b');
 
-      service.revokeGrant({ grant_id: grantA.grant_id, idempotency_key: 'idem-2' });
+      service.revokeGrant({ authority: ADMIN, grant_id: grantA.grant_id, idempotency_key: 'idem-2' });
 
-      expect(() => service.revokeGrant({ grant_id: grantB.grant_id, idempotency_key: 'idem-2' })).toThrow(
+      expect(() => service.revokeGrant({ authority: ADMIN, grant_id: grantB.grant_id, idempotency_key: 'idem-2' })).toThrow(
         RevocationIdempotencyConflictError
       );
       // grantB must remain untouched — the conflicting request must not have partially applied.
@@ -101,12 +105,14 @@ describe('ControlPlaneService.revokeGrant — canonical revocation write path', 
       const service = new ControlPlaneService();
       const grant = grantFixture(service, 'subject-legit');
 
-      const first = service.revokeGrant({ grant_id: grant.grant_id, idempotency_key: 'idem-subj-1', subject_id: 'subject-legit' });
+      const first = service.revokeGrant({ authority: ADMIN, grant_id: grant.grant_id, idempotency_key: 'idem-subj-1', subject_id: 'subject-legit' });
       expect(first.idempotentReplay).toBe(false);
 
+      // Authority and consistency are checked against the stored grant before any cached result
+      // is consulted, so the mismatch itself is what refuses the replay.
       expect(() =>
-        service.revokeGrant({ grant_id: grant.grant_id, idempotency_key: 'idem-subj-1', subject_id: 'someone-else' })
-      ).toThrow(RevocationIdempotencyConflictError);
+        service.revokeGrant({ authority: ADMIN, grant_id: grant.grant_id, idempotency_key: 'idem-subj-1', subject_id: 'someone-else' })
+      ).toThrow(AccessRequestSubjectMismatchError);
     });
 
     it('retry after a hypothetical timeout (no idempotency_key reused, same grant) does not duplicate revocation state', () => {
@@ -115,8 +121,8 @@ describe('ControlPlaneService.revokeGrant — canonical revocation write path', 
       const service = new ControlPlaneService();
       const grant = grantFixture(service);
 
-      const first = service.revokeGrant({ grant_id: grant.grant_id });
-      const retry = service.revokeGrant({ grant_id: grant.grant_id });
+      const first = service.revokeGrant({ authority: ADMIN, grant_id: grant.grant_id });
+      const retry = service.revokeGrant({ authority: ADMIN, grant_id: grant.grant_id });
 
       expect(retry.idempotentReplay).toBe(true);
       expect(retry.revocationId).toBe(first.revocationId);
@@ -131,8 +137,8 @@ describe('ControlPlaneService.revokeGrant — canonical revocation write path', 
       const grant = grantFixture(service);
 
       const [a, b] = await Promise.all([
-        Promise.resolve().then(() => service.revokeGrant({ grant_id: grant.grant_id, idempotency_key: 'race-1' })),
-        Promise.resolve().then(() => service.revokeGrant({ grant_id: grant.grant_id, idempotency_key: 'race-1' })),
+        Promise.resolve().then(() => service.revokeGrant({ authority: ADMIN, grant_id: grant.grant_id, idempotency_key: 'race-1' })),
+        Promise.resolve().then(() => service.revokeGrant({ authority: ADMIN, grant_id: grant.grant_id, idempotency_key: 'race-1' })),
       ]);
 
       expect(a.revocationId).toBe(b.revocationId);
@@ -149,7 +155,7 @@ describe('ControlPlaneService.revokeGrant — canonical revocation write path', 
       const grant = grantFixture(service);
       const simulatedBillingState = { balance: 0, subscriptionSuspended: true, entitlementExpired: true };
 
-      const result = service.revokeGrant({ grant_id: grant.grant_id, reason: 'incident_containment' });
+      const result = service.revokeGrant({ authority: ADMIN, grant_id: grant.grant_id, reason: 'incident_containment' });
 
       expect(result.grant.status).toBe('revoked');
       // The assertion above already proves containment succeeded; this just documents intent.
@@ -163,8 +169,8 @@ describe('ControlPlaneService.revokeGrant — canonical revocation write path', 
       const service = new ControlPlaneService((event, payload) => events.push({ event, payload }));
       const grant = grantFixture(service);
 
-      service.revokeGrant({ grant_id: grant.grant_id, idempotency_key: 'tel-1' });
-      service.revokeGrant({ grant_id: grant.grant_id, idempotency_key: 'tel-1' });
+      service.revokeGrant({ authority: ADMIN, grant_id: grant.grant_id, idempotency_key: 'tel-1' });
+      service.revokeGrant({ authority: ADMIN, grant_id: grant.grant_id, idempotency_key: 'tel-1' });
 
       const eventTypes = events.map((e) => e.event);
       expect(eventTypes).toContain(REVOCATION_TELEMETRY_EVENTS.COMMAND_STARTED);
@@ -183,14 +189,14 @@ describe('ControlPlaneService.revokeGrant — canonical revocation write path', 
       const grantB = grantFixture(service, 'subject-b');
 
       try {
-        service.revokeGrant({ grant_id: 'missing' });
+        service.revokeGrant({ authority: ADMIN, grant_id: 'missing' });
       } catch {
         // expected
       }
 
-      service.revokeGrant({ grant_id: grantA.grant_id, idempotency_key: 'conflict-key' });
+      service.revokeGrant({ authority: ADMIN, grant_id: grantA.grant_id, idempotency_key: 'conflict-key' });
       try {
-        service.revokeGrant({ grant_id: grantB.grant_id, idempotency_key: 'conflict-key' });
+        service.revokeGrant({ authority: ADMIN, grant_id: grantB.grant_id, idempotency_key: 'conflict-key' });
       } catch {
         // expected
       }

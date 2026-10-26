@@ -1,3 +1,5 @@
+import type { SubjectConsentProofV1 } from '../../consent/proof';
+
 export type ConsentRecord = {
   consent_id: string;
   subject_id: string;
@@ -10,6 +12,8 @@ export type ConsentRecord = {
   revoked_at: string | null;
   consent_hash: string | null;
   metadata?: Record<string, unknown>;
+  /** The subject's detached proof (consent/proof.ts). A record without one grants nothing. */
+  subject_proof?: SubjectConsentProofV1;
 };
 
 export type ConsentRequest = {
@@ -31,6 +35,8 @@ export const CONSENT_DECISION_REASON_CODES = {
   DENY_EXPIRED: 'DENY_EXPIRED',
   DENY_REVOKED: 'DENY_REVOKED',
   DENY_INVALID_INPUT: 'DENY_INVALID_INPUT',
+  DENY_UNAUTHENTICATED: 'DENY_UNAUTHENTICATED',
+  DENY_REVOCATION_UNKNOWN: 'DENY_REVOCATION_UNKNOWN',
 } as const;
 
 export type ConsentDecisionReasonCode =

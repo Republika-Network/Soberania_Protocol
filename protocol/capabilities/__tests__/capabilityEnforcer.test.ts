@@ -1,12 +1,25 @@
-import { buildConsentObject } from '../../../consent';
+import { buildConsentObject as buildUnsignedConsentObject } from '../../../consent';
 import { mintCapabilityToken } from '../../../capability';
 import { capabilityAccessReasonCodes } from '../../../enforcement';
-import { enforceCapability } from '../capabilityEnforcer';
+import { enforceCapability as enforceCapabilityRaw } from '../capabilityEnforcer';
 import { MarketMakerRegistry } from '../../../shared/marketMakerRegistry';
 import { InMemoryRateLimitRegistry } from '../consumeCapabilityAccess';
+import { testSubjectSigner, signTestConsent } from '../../../tests/helpers/consentSigning';
+import { InMemoryRevocationRegistry } from '../../../capability/registries/InMemoryRevocationRegistry';
 
-const SUBJECT = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK';
-const GRANTEE = 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH';
+// Every authorization path reads revocation from an injected registry; these
+// tests share one and pass it unless a test supplies its own.
+const revocationRegistry = new InMemoryRevocationRegistry();
+const enforceCapability: typeof enforceCapabilityRaw = (input) =>
+  enforceCapabilityRaw({ ...input, registries: { revocationRegistry, ...input.registries } });
+
+
+// Consents in these tests are signed by their subject; unsigned consents authorize nothing.
+const buildConsentObject: typeof buildUnsignedConsentObject = (...args) =>
+  signTestConsent(buildUnsignedConsentObject(...args));
+
+const SUBJECT = testSubjectSigner('subject').did;
+const GRANTEE = testSubjectSigner('grantee').did;
 const CONTENT_REF = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const CONSENT_EXPIRES = '2025-06-15T10:05:00Z';
 const NOW = new Date('2025-06-15T10:00:00Z');

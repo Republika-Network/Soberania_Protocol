@@ -1,16 +1,23 @@
 import {
   InMemoryRateLimitRegistry,
+  InMemoryRevocationRegistry,
   MarketMakerRegistry,
-  buildConsentObject,
+  buildConsentObject as buildUnsignedConsentObject,
   executeCapabilityFlow,
   mintCapabilityToken
 } from '../../aoc/sdk';
+import { testSubjectSigner, signTestConsent } from '../helpers/consentSigning';
 
-const SUBJECT = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK';
-const GRANTEE = 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH';
+// Consents in these tests are signed by their subject; unsigned consents authorize nothing.
+const buildConsentObject: typeof buildUnsignedConsentObject = (...args) =>
+  signTestConsent(buildUnsignedConsentObject(...args));
+
+const SUBJECT = testSubjectSigner('subject').did;
+const GRANTEE = testSubjectSigner('grantee').did;
 const MARKET_MAKER_ID = 'hrkey-v1';
 const CONTENT_REF = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const NOW = '2025-06-15T10:00:00Z';
+const revocationRegistry = new InMemoryRevocationRegistry();
 
 function createMarketMakerRegistry(): MarketMakerRegistry {
   const marketMakers = new MarketMakerRegistry();
@@ -61,6 +68,7 @@ describe('executeCapabilityFlow', () => {
     const { consent, capability } = createCapability();
 
     const result = executeCapabilityFlow({
+      registries: { revocationRegistry },
       capability,
       consent,
       action: 'store',
@@ -90,6 +98,7 @@ describe('executeCapabilityFlow', () => {
     });
 
     const result = executeCapabilityFlow({
+      registries: { revocationRegistry },
       capability,
       consent,
       action: 'read',
@@ -118,6 +127,7 @@ describe('executeCapabilityFlow', () => {
     const { consent, capability } = createCapability();
 
     const result = executeCapabilityFlow({
+      registries: { revocationRegistry },
       capability,
       consent,
       action: 'read',
@@ -140,6 +150,7 @@ describe('executeCapabilityFlow', () => {
     const { consent, capability } = createCapability({ marketMakerBound: false });
 
     const result = executeCapabilityFlow({
+      registries: { revocationRegistry },
       capability,
       consent,
       action: 'read',
@@ -234,6 +245,7 @@ describe('executeCapabilityFlow', () => {
     });
 
     const deprecatedResult = executeCapabilityFlow({
+      registries: { revocationRegistry },
       capability,
       consent,
       action: 'read',
@@ -259,6 +271,7 @@ describe('executeCapabilityFlow', () => {
     expect(deprecatedResult.reasonCode).toBe(deprecatedResult.evaluation.reasonCode);
 
     const revokedResult = executeCapabilityFlow({
+      registries: { revocationRegistry },
       capability,
       consent,
       action: 'read',
@@ -288,6 +301,7 @@ describe('executeCapabilityFlow', () => {
     const { consent, capability } = createCapability({ marketMakerBound: false });
 
     const result = executeCapabilityFlow({
+      registries: { revocationRegistry },
       capability,
       consent,
       action: 'read',

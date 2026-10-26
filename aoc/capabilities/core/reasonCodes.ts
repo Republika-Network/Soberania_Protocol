@@ -22,6 +22,10 @@ export const capabilityAccessReasonCodes = {
   PAYMENT_REQUIRED: 'PAYMENT_REQUIRED',
   CONSENT_INVALID: 'CONSENT_INVALID',
   CONSENT_MISMATCH: 'CONSENT_MISMATCH',
+  CONSENT_UNAUTHENTICATED: 'CONSENT_UNAUTHENTICATED',
+  CONSENT_REVOKED: 'CONSENT_REVOKED',
+  CAPABILITY_REVOKED: 'CAPABILITY_REVOKED',
+  REVOCATION_UNAVAILABLE: 'REVOCATION_UNAVAILABLE',
   INTERNAL_EVALUATION_ERROR: 'INTERNAL_EVALUATION_ERROR'
 } as const;
 
@@ -42,7 +46,11 @@ export const capabilityReasonCodeTaxonomy = {
     capabilityAccessReasonCodes.RESOURCE_MISSING,
     capabilityAccessReasonCodes.RESOURCE_NOT_ALLOWED,
     capabilityAccessReasonCodes.CONSENT_INVALID,
-    capabilityAccessReasonCodes.CONSENT_MISMATCH
+    capabilityAccessReasonCodes.CONSENT_MISMATCH,
+    capabilityAccessReasonCodes.CONSENT_UNAUTHENTICATED,
+    capabilityAccessReasonCodes.CONSENT_REVOKED,
+    capabilityAccessReasonCodes.CAPABILITY_REVOKED,
+    capabilityAccessReasonCodes.REVOCATION_UNAVAILABLE
   ] as const,
   runtime: [
     capabilityAccessReasonCodes.MARKET_MAKER_REQUIRED,

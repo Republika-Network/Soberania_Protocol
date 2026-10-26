@@ -1,6 +1,10 @@
+import { generateKeyPairSync } from 'crypto';
 import {
+  InMemoryRevocationRegistry,
   MarketMakerRegistry,
   buildConsentObject,
+  createDidKeySigner,
+  signConsentObject,
   consumeCapabilityAccess,
   evaluateCapabilityAccess,
   executeCapabilityFlow,
@@ -8,12 +12,17 @@ import {
   mintCapabilityToken
 } from '../aoc/sdk';
 
-const SUBJECT = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK';
+// The subject's key stays in the subject's wallet; it is generated here only
+// to keep the example self-contained.
+const subjectSigner = createDidKeySigner(generateKeyPairSync('ed25519').privateKey);
+const SUBJECT = subjectSigner.did;
 const MARKET_MAKER_DID = 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH';
 const MARKET_MAKER_ID = 'hrkey-v1';
 const CONTENT_REF = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const NOW = '2025-06-15T10:00:00Z';
 
+// Every authorization decision reads revocation from an injected registry; there is no default.
+const revocations = new InMemoryRevocationRegistry();
 const marketMakers = new MarketMakerRegistry();
 marketMakers.register({
   id: MARKET_MAKER_ID,
@@ -25,7 +34,8 @@ marketMakers.register({
   created_at: NOW
 });
 
-const consent = buildConsentObject(
+// A consent grants nothing until its subject signs it.
+const consent = signConsentObject(buildConsentObject(
   SUBJECT,
   MARKET_MAKER_DID,
   'grant',
@@ -36,7 +46,7 @@ const consent = buildConsentObject(
     expires_at: '2025-06-15T10:05:00Z',
     marketMakerId: MARKET_MAKER_ID
   }
-);
+), subjectSigner);
 
 const capability = mintCapabilityToken(
   consent,
@@ -56,6 +66,7 @@ const evaluation = evaluateCapabilityAccess({
   resource: { type: 'content', ref: CONTENT_REF },
   marketMakerId: MARKET_MAKER_ID,
   marketMakerRegistry: marketMakers,
+  registries: { revocationRegistry: revocations },
   now: NOW
 });
 
@@ -70,6 +81,7 @@ const consumption = consumeCapabilityAccess({
   resource: { type: 'content', ref: CONTENT_REF },
   marketMakerId: MARKET_MAKER_ID,
   marketMakerRegistry: marketMakers,
+  registries: { revocationRegistry: revocations },
   now: NOW
 });
 
@@ -113,6 +125,7 @@ const wrapped = executeCapabilityFlow({
   resource: { type: 'content', ref: CONTENT_REF },
   marketMakerId: MARKET_MAKER_ID,
   marketMakerRegistry: marketMakers,
+  registries: { revocationRegistry: revocations },
   now: NOW,
   interpreter: {
     enabled: true,

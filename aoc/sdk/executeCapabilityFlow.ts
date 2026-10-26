@@ -68,7 +68,8 @@ export function executeCapabilityFlow(
     marketMakerId: request.marketMakerId,
     marketMakerRegistry: request.marketMakerRegistry,
     now: request.now,
-    hooks: request.hooks
+    hooks: request.hooks,
+    registries: { revocationRegistry: request.registries?.revocationRegistry }
   });
 
   if (!evaluation.allowed) {

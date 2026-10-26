@@ -12,6 +12,10 @@ export const ENFORCEMENT_REASON_CODES = {
   SUBJECT_MISMATCH: 'SUBJECT_MISMATCH',
   GRANTEE_MISMATCH: 'GRANTEE_MISMATCH',
   MARKET_MAKER_MISMATCH: 'MARKET_MAKER_MISMATCH',
+  CONSENT_INVALID: 'CONSENT_INVALID',
+  CONSENT_MISMATCH: 'CONSENT_MISMATCH',
+  CONSENT_INACTIVE: 'CONSENT_INACTIVE',
+  CONSENT_UNAUTHENTICATED: 'CONSENT_UNAUTHENTICATED',
   REQUEST_INVALID: 'REQUEST_INVALID',
   ENFORCEMENT_ALLOW: 'ENFORCEMENT_ALLOW',
 } as const;
@@ -31,6 +35,12 @@ export type EnforcementResource = {
  */
 export type EnforcementRequest = {
   capability: unknown;
+  /**
+   * Required: the parent consent the capability was minted from. The capability
+   * is allowed only while this consent is active and only within its scope and
+   * permissions. The consent's subject is not authenticated by this check.
+   */
+  consent: unknown;
   requested_scope: ScopeEntry[];
   requested_permissions: string[];
   subject?: string;
@@ -43,6 +53,7 @@ export type EnforcementRequest = {
 
 export type NormalizedEnforcementRequest = {
   capability: unknown;
+  consent: unknown;
   requested_scope: ScopeEntry[];
   requested_permissions: string[];
   subject?: string;

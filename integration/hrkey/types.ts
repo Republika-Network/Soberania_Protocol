@@ -64,7 +64,11 @@ export type HRKeySDLPath = string;
 
 /** Input for registering a candidate's data pack through HRKey. */
 export type RegisterPackInput = {
-  /** The pre-built PackManifestV1 from the candidate's wallet. */
+  /**
+   * The pre-built PackManifestV1 from the candidate's wallet, signed by the
+   * candidate (signPackManifest). The Vault refuses unsigned packs and packs
+   * that list content already registered by another subject.
+   */
   pack: PackManifestV1;
   /** SDL path → field_id mappings for this pack's fields. */
   sdl_mappings: ReadonlyArray<{ sdl_path: string; field_id: string }>;
@@ -77,6 +81,14 @@ export type GrantConsentInput = {
   scope: ScopeEntry[];
   permissions: string[];
   expires_at: string | null;
+};
+
+/**
+ * A consent signed by the candidate (consent/proof.ts). The candidate's wallet
+ * signs the object returned by prepareConsent; HRKey never holds the key.
+ */
+export type SignedConsentInput = {
+  consent: ConsentObjectV1;
 };
 
 /** Input for minting an attenuated capability token. */
@@ -136,13 +148,21 @@ export interface IHRKeyVaultAdapter {
   registerPack(input: RegisterPackInput): RegisterPackResult;
 
   /**
-   * Record a candidate's consent grant for an employer.
-   * Builds a ConsentObjectV1 and stores it in the Vault.
+   * Build the unsigned consent a candidate is asked to sign. It grants nothing
+   * until the candidate's did:key signs it (signConsentObject).
    *
    * @throws if DID format is invalid
    * @throws if scope/permissions are empty or malformed
    */
-  grantConsent(input: GrantConsentInput, opts?: { now?: Date }): GrantConsentResult;
+  prepareConsent(input: GrantConsentInput, opts?: { now?: Date }): ConsentObjectV1;
+
+  /**
+   * Record a consent grant signed by the candidate and store it in the Vault.
+   *
+   * @throws if the consent is not a grant signed by its subject
+   * @throws if the consent is malformed
+   */
+  grantConsent(input: SignedConsentInput): GrantConsentResult;
 
   /**
    * Mint an attenuated capability token from an existing consent.
@@ -163,8 +183,13 @@ export interface IHRKeyVaultAdapter {
   requestAccess(input: AccessRequestInput, opts?: { now?: Date }): VaultAccessResult;
 
   /**
-   * Revoke a previously minted capability token.
-   * Subsequent requestAccess calls with this token will return DENY(REVOKED).
+   * Withdraw a consent with a revoke consent signed by the candidate who granted
+   * it (prior_consent = the consent, revoke_target = one of its capabilities).
+   * Every capability minted from that consent, by this adapter or elsewhere, is
+   * denied from then on, and nothing more can be minted from it.
+   *
+   * @throws if the revocation is not signed by the consent's subject or does not
+   *         name a stored consent of that subject
    */
-  revokeCapability(capability_hash: string): void;
+  revokeConsent(input: SignedConsentInput): void;
 }

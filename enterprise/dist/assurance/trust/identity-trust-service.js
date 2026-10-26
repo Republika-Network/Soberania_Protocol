@@ -1,21 +1,49 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DEFAULT_TRUST_ISSUERS = exports.InMemoryTrustService = void 0;
+exports.identityRegistrationPayload = identityRegistrationPayload;
+const crypto_1 = require("@aoc-runtime/crypto");
 const identity_verification_1 = require("../verification/identity-verification");
+/** The bytes an issuer signs to register a credential or consent: the record without its signature. */
+function identityRegistrationPayload(kind, input) {
+    const { issuer_signature: _ignored, ...record } = input;
+    return { kind: kind === 'credential' ? 'aoc.identity.credential' : 'aoc.identity.consent', record };
+}
 class InMemoryTrustService {
-    constructor(initialIssuers = [], verificationEngine = new identity_verification_1.IdentityVerificationEngine()) {
+    constructor(initialIssuers = [], options = {}, verificationEngine = new identity_verification_1.IdentityVerificationEngine()) {
         this.verificationEngine = verificationEngine;
         this.issuers = new Map();
         this.credentials = new Map();
         this.consents = new Map();
         this.auditEvents = [];
+        this.trustedIssuerKeys = options.trustedIssuerKeys;
         for (const issuer of initialIssuers)
             this.issuers.set(issuer.issuer_id, issuer);
     }
     getAuditEvents() {
         return [...this.auditEvents];
     }
-    registerCredential(input) {
+    /**
+     * Confirms that `input` was signed by the trusted key of the issuer it names,
+     * and returns the signed record (read once). Throws otherwise.
+     */
+    authenticateIssuer(kind, input) {
+        if (this.trustedIssuerKeys === undefined) {
+            throw new Error('No trusted issuer keys are configured; identity registration is refused.');
+        }
+        const payload = identityRegistrationPayload(kind, input);
+        const record = payload.record;
+        const envelope = (0, crypto_1.snapshotGovernanceSignature)(input?.issuer_signature);
+        if (!envelope ||
+            typeof record.issuer_id !== 'string' ||
+            envelope.signer.issuerId !== record.issuer_id ||
+            !(0, crypto_1.verifyPayloadSignature)(payload, envelope, this.trustedIssuerKeys)) {
+            throw new Error(`Identity ${kind} is not signed by issuer ${String(record.issuer_id)}.`);
+        }
+        return record;
+    }
+    registerCredential(signedInput) {
+        const input = this.authenticateIssuer('credential', signedInput);
         const issuer = this.issuers.get(input.issuer_id);
         if (issuer === undefined || !issuer.active)
             throw new Error(`Issuer is invalid or inactive: ${input.issuer_id}`);
@@ -51,7 +79,8 @@ class InMemoryTrustService {
         }
         return record;
     }
-    grantConsent(input) {
+    grantConsent(signedInput) {
+        const input = this.authenticateIssuer('consent', signedInput);
         const issuer = this.issuers.get(input.issuer_id);
         if (issuer === undefined || !issuer.active)
             throw new Error(`Issuer is invalid or inactive: ${input.issuer_id}`);

@@ -12,13 +12,24 @@
 | Revoke an already-revoked grant (any caller, any key) | Same as above — revoking twice is a stable no-op, not an error and not a fresh mutation | "removes the grant from listActiveGrants once revoked" + already-revoked branch in `revokeGrant` |
 | Two logically concurrent calls, same key | Converge on one `revocationId`, one evidence record | "two revocations racing for the same grant converge on one revocation, not two" |
 
+## Authority
+
+`revokeGrant` requires `authority` — the authenticated revoker (the hosted route derives it from
+the API key, never from the body). The grant is revoked only if the authority is an admin or one
+of its principals is the **stored** grant's `subject_id` or `requester_id`
+(`AccessGrantRevocationUnauthorizedError` otherwise). A `subject_id` / `requester_id` named in the
+input is a consistency check against the stored grant, not a source of authority. Evidence
+records carry `revoked_by`.
+
 ## Fingerprinting
 
-The idempotency cache key is `idempotency_key` (caller-supplied); the value is
-`{ fingerprint, result }` where `fingerprint = JSON.stringify({ grant_id, reason })`. A conflict is
-detected by fingerprint mismatch under the same key, not by grant identity alone — this is what
-lets rule 2 above catch "same key reused for an unrelated request" rather than only "same key,
-same grant, different reason".
+The idempotency cache key is `<authority.owner>\0<idempotency_key>`: keys are scoped per revoker,
+so a key used by one party never replays, blocks or reveals another party's revocation. Within one
+revoker the value is `{ fingerprint, result }` where
+`fingerprint = JSON.stringify({ grant_id, reason, subject_id, requester_id })`. A conflict is
+detected by fingerprint mismatch under the same scoped key, not by grant identity alone — this is
+what lets rule 2 above catch "same key reused for an unrelated request" rather than only "same
+key, same grant, different reason".
 
 ## What's explicitly *not* built
 

@@ -1,10 +1,12 @@
 import type { CapabilityTokenV1 } from '../../../capability';
 import type { ConsentObjectV1 } from '../../../consent';
+import { assertConsentObjectAuthenticated } from '../../../consent/signing';
 
 export function verifyCapabilityConsentBinding(
   token: CapabilityTokenV1,
   consent: ConsentObjectV1
 ): void {
+  assertConsentObjectAuthenticated(consent);
   if (token.consent_ref !== consent.consent_hash) {
     throw new Error(
       'Capability consent_ref does not match parent consent consent_hash.'

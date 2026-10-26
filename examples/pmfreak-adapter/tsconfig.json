@@ -2,7 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "rootDir": "src"
   },
   "include": [
     "src/**/*.ts"
@@ -22,6 +23,9 @@
     },
     {
       "path": "../../packages/authorization-runtime"
+    },
+    {
+      "path": "../../crypto"
     }
   ]
 }

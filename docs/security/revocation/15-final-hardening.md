@@ -182,3 +182,27 @@ why it doesn't automatically become upgradeable):
 
 The PR should be opened when a human is ready to review it with these two conditions in hand; this
 iteration does not, on its own, clear them.
+
+## Addendum (2026-10-24): the HMAC token-use path is disabled, not just fenced
+
+A caller that fails type checking is not a safeguard: TypeScript toolchains that skip type
+checking still execute it. Item 4 above ("Not eliminated ... still work as before") therefore no
+longer holds:
+
+1. `authorizeWithCapability` never allows. It still reports shape/hash/signature/expiry failures and
+   request mismatches, but a token that passes every check is denied with
+   `CAPABILITY_PATH_DISABLED`. It is removed from the `protocol/consent` barrel (and so from the
+   root index); only `runtime/enforcement/enforceCapability.ts` imports it, by file path.
+2. `enforceCapabilityAccess` has no `soft` mode (`EnforcementMode` is `'strict'` only): no token
+   → `CAPABILITY_MISSING`, any token → `CAPABILITY_DENIED`, both 403. `runtime/enforcement/index.ts`
+   exports types only, so the function is on no surface; `createRuntimeServer` throws if a soft
+   mode is configured by dependency or `ENFORCEMENT_MODE`. Hosted `/data/access` and
+   `/payout/execute` requests that name both principals are denied.
+3. `scripts/check-runtime-export-governance.mjs` checks the barrels, the enforcement index, the
+   two implementation files and the root index for the names, the soft mode and any `allowed: true`
+   literal, and now runs inside `check:aoc-boundaries` (CI `ci.yml` and `validate:release`).
+4. `tests/contracts/hmac-capability-path-disabled.test.ts` asserts all of the above under Jest and
+   again through a transpile-only loader in a child Node process (no type checking at all).
+
+Re-enabling the path requires an authoritative `RevocationCheckPort` that denies on anything but
+`verified_not_revoked`, single-use enforcement and a constant-time signature compare, and a review.

@@ -1,10 +1,15 @@
-import { buildConsentObject } from '../../../consent';
+import { buildConsentObject as buildUnsignedConsentObject } from '../../../consent';
 import { mintCapability } from '../../capability';
 import { ENFORCEMENT_REASON_CODES, evaluateEnforcement } from '..';
 import { createStaticRevocationCheck, revocationLookupTimeoutStatus, revokedStatus, verifiedNotRevokedStatus } from '../../revocation';
+import { testSubjectSigner, signTestConsent } from '../../../tests/helpers/consentSigning';
 
-const SUBJECT = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK';
-const GRANTEE = 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH';
+// Consents in these tests are signed by their subject; unsigned consents authorize nothing.
+const buildConsentObject: typeof buildUnsignedConsentObject = (...args) =>
+  signTestConsent(buildUnsignedConsentObject(...args));
+
+const SUBJECT = testSubjectSigner('subject').did;
+const GRANTEE = testSubjectSigner('grantee').did;
 const REF_A = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const REF_B = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
@@ -22,8 +27,8 @@ const revoked = createStaticRevocationCheck(
 );
 const unknown = createStaticRevocationCheck(revocationLookupTimeoutStatus({ subjectId: 'fixture', subjectType: 'capability_grant' }));
 
-function buildCapability() {
-  const consent = buildConsentObject(
+function buildConsent() {
+  return buildConsentObject(
     SUBJECT,
     GRANTEE,
     'grant',
@@ -38,9 +43,11 @@ function buildCapability() {
       marketMakerId: 'mm-01',
     }
   );
+}
 
+function buildCapability() {
   return mintCapability({
-    consent,
+    consent: buildConsent(),
     requested_scope: [{ type: 'content', ref: REF_A }],
     requested_permissions: ['read'],
     issued_at: '2026-02-01T00:00:00Z',
@@ -54,6 +61,7 @@ describe('protocol enforcement runtime', () => {
   it('request válido => allow', () => {
     const decision = evaluateEnforcement(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -74,6 +82,7 @@ describe('protocol enforcement runtime', () => {
   it('capability inválido => deny CAPABILITY_INVALID', () => {
     const decision = evaluateEnforcement(
       {
+        consent: buildConsent(),
         capability: {},
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -91,6 +100,7 @@ describe('protocol enforcement runtime', () => {
   it('capability expired => deny CAPABILITY_EXPIRED', () => {
     const decision = evaluateEnforcement(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -108,6 +118,7 @@ describe('protocol enforcement runtime', () => {
   it('capability revoked => deny CAPABILITY_REVOKED', () => {
     const decision = evaluateEnforcement(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -129,6 +140,7 @@ describe('protocol enforcement runtime', () => {
     // canonical fail-closed engine must deny.
     const decision = evaluateEnforcement(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -164,6 +176,7 @@ describe('protocol enforcement runtime', () => {
 
     const decision = evaluateEnforcement(
       {
+        consent,
         capability,
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -181,6 +194,7 @@ describe('protocol enforcement runtime', () => {
   it('requested_scope fuera => deny SCOPE_NOT_ALLOWED', () => {
     const decision = evaluateEnforcement(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'pack', ref: REF_B }],
         requested_permissions: ['read'],
@@ -198,6 +212,7 @@ describe('protocol enforcement runtime', () => {
   it('requested_permissions fuera => deny PERMISSION_NOT_ALLOWED', () => {
     const decision = evaluateEnforcement(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['share'],
@@ -215,6 +230,7 @@ describe('protocol enforcement runtime', () => {
   it('subject mismatch => deny SUBJECT_MISMATCH', () => {
     const decision = evaluateEnforcement(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -233,6 +249,7 @@ describe('protocol enforcement runtime', () => {
   it('grantee mismatch => deny GRANTEE_MISMATCH', () => {
     const decision = evaluateEnforcement(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -251,6 +268,7 @@ describe('protocol enforcement runtime', () => {
   it('marketMaker mismatch => deny MARKET_MAKER_MISMATCH', () => {
     const decision = evaluateEnforcement(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['read'],
@@ -269,6 +287,7 @@ describe('protocol enforcement runtime', () => {
   it('request inválido => deny REQUEST_INVALID', () => {
     const decision = evaluateEnforcement(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [],
         requested_permissions: ['read'],
@@ -286,6 +305,7 @@ describe('protocol enforcement runtime', () => {
   it('fail-closed cuando permission está vacía', () => {
     const decision = evaluateEnforcement(
       {
+        consent: buildConsent(),
         capability: buildCapability(),
         requested_scope: [{ type: 'content', ref: REF_A }],
         requested_permissions: ['   '],

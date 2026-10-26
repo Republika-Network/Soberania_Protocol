@@ -115,6 +115,7 @@ export function parseExecutionRequest(input: unknown): ExecutionRequest {
 
   const parsedEnforcement = parseEnforcementRequest({
     capability: record.capability,
+    consent: record.consent,
     requested_scope: record.requested_scope,
     requested_permissions: record.requested_permissions,
     subject: parseOptionalBinding(record, 'subject'),

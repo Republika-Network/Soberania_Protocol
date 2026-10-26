@@ -3,6 +3,7 @@ import type { CapabilityTokenV1 } from '../capability';
 import type { PackManifestV1 } from '../pack';
 import type { NonceRegistry } from '../capability/registries/NonceRegistry';
 import type { RevocationRegistry } from '../capability/registries/RevocationRegistry';
+import type { ContentOwnershipAuthority } from './contentOwnership';
 
 // --- Error Codes ---
 
@@ -21,6 +22,11 @@ export type VaultErrorCode =
   | 'PACK_NOT_FOUND'
   | 'CONSENT_NOT_FOUND'
   | 'CONSENT_MISMATCH'
+  | 'CONSENT_UNAUTHENTICATED'
+  | 'CONSENT_REVOKED'
+  | 'REVOCATION_UNAVAILABLE'
+  | 'CONTENT_NOT_OWNED'
+  | 'OWNERSHIP_UNAVAILABLE'
   | 'RESOURCE_RESTRICTION_FAILED'
   | 'REQUEST_CONTEXT_MISMATCH'
   | 'RATE_LIMIT_UNSUPPORTED'
@@ -78,12 +84,31 @@ export type VaultStore = {
   sdl_mappings: Map<string, string>;
 };
 
+// --- Content ownership ---
+
+export type { ContentOwnershipAuthority } from './contentOwnership';
+
 // --- Vault Options ---
 
 export type VaultOptions = {
   now?: Date;
   nonceRegistry?: NonceRegistry;
+  /**
+   * The vault's revocation authority. Subject-signed revoke consents are recorded
+   * here (consent revocation); operator containment of a single token goes through
+   * the same registry's `revoke`. Defaults to a per-vault in-memory registry, which
+   * is single-process state: a multi-instance deployment must inject a shared store.
+   */
   revocationRegistry?: RevocationRegistry;
+  /**
+   * The trust domain (tenant) this vault serves and the ownership authority that
+   * answers for it. Both are required to register packs or release fields: a
+   * vault without them stores consents and mints, but refuses every pack and
+   * denies every access with OWNERSHIP_UNAVAILABLE. The authority's trust domain
+   * must equal `trustDomain`.
+   */
+  trustDomain?: string;
+  contentOwnership?: ContentOwnershipAuthority;
 };
 
 // --- Vault Interface ---
@@ -104,6 +129,5 @@ export type Vault = {
     opts?: { now?: Date }
   ): VaultAccessResult;
   registerSdlMapping(sdl_path: string, field_id: string): void;
-  revokeCapability(capability_hash: string): void;
   getStore(): Readonly<VaultStore>;
 };

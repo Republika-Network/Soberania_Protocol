@@ -1,4 +1,5 @@
 import type { RevocationCheckPort, RevocationStatus } from '../revocation';
+import type { SubjectConsentProofV1 } from '../../consent/proof';
 
 export type ScopeEntry = {
   type: 'field' | 'content' | 'pack';
@@ -25,6 +26,8 @@ export type ProtocolConsent = {
   expires_at: string | null;
   prior_consent: string | null;
   consent_hash: string;
+  /** The subject's detached proof (consent/proof.ts). Required for the consent to be active. */
+  subject_proof?: SubjectConsentProofV1;
 };
 
 export type ConsentState =

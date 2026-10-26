@@ -29,3 +29,4 @@ export type {
   MemoryMetadata,
   ClassifyMemoryInput
 } from './memoryTaxonomy';
+export * from './contentOwnership';

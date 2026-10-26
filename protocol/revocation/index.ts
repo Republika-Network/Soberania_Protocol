@@ -27,9 +27,15 @@ export {
   mapRevocationStatusToHttpStatus,
 } from './revocation-policy';
 
-export type { RevocationCheckPort, RevocationSubjectRef, BooleanRevocationRegistry } from './revocation-check';
+export type {
+  RevocationCheckPort,
+  RevocationSubjectRef,
+  BooleanRevocationRegistry,
+  CapabilityModelRevocationRegistry,
+} from './revocation-check';
 export {
   createRegistryRevocationCheck,
+  createCapabilityRevocationCheck,
   createStaticRevocationCheck,
   withRevocationTimeout,
   ALWAYS_UNKNOWN_REVOCATION_CHECK,

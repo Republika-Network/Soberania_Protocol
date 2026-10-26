@@ -10,7 +10,9 @@ import {
   DEFAULT_TRUST_ISSUERS as ENTERPRISE_DEFAULT_TRUST_ISSUERS,
   InMemoryCanonicalTrustRegistry,
   InMemoryTrustService as EnterpriseTrustService,
+  identityRegistrationPayload,
 } from '../../enterprise/src/assurance/trust';
+import { createRuntimeAuthority, createTrustedKeySet, signPayload } from '../../crypto/engine';
 import {
   DefaultRuntimeHealthReporter as EnterpriseHealthReporter,
   DefaultTraceContextProvider as EnterpriseTraceProvider,
@@ -60,17 +62,22 @@ describe('PR-04 Assurance extraction parity', () => {
   });
 
   it('preserves identity verification workflow outputs and audit side effects', () => {
-    const oldPath = new InMemoryTrustService(DEFAULT_TRUST_ISSUERS);
-    const newPath = new EnterpriseTrustService(ENTERPRISE_DEFAULT_TRUST_ISSUERS);
-    const credential = {
+    const issuer = createRuntimeAuthority('runtime:kyc-global', 'kyc-global-v1');
+    const trustedIssuerKeys = createTrustedKeySet([issuer.identity]);
+    const provenance = { runtimeSource: 'test-suite', timestamp: '2026-01-01T00:00:00.000Z' };
+    const oldPath = new InMemoryTrustService(DEFAULT_TRUST_ISSUERS, { trustedIssuerKeys });
+    const newPath = new EnterpriseTrustService(ENTERPRISE_DEFAULT_TRUST_ISSUERS, { trustedIssuerKeys });
+    const credentialRecord = {
       credential_ref: 'credential:1', subject_hash: 'subject:1', issuer_id: 'kyc-global-v1',
       credential_hash: 'hash', metadata_hash: 'metadata', kyc_level: 'enhanced' as const,
       issued_at: '2026-01-01T00:00:00.000Z', expires_at: '2027-01-01T00:00:00.000Z',
     };
-    const consent = {
+    const consentRecord = {
       consent_id: 'consent:1', subject_hash: 'subject:1', consumer_id: 'consumer:1',
       issuer_id: 'kyc-global-v1', granted_at: '2026-01-02T00:00:00.000Z',
     };
+    const credential = { ...credentialRecord, issuer_signature: signPayload(identityRegistrationPayload('credential', credentialRecord), issuer.privateKey, issuer.identity, provenance) };
+    const consent = { ...consentRecord, issuer_signature: signPayload(identityRegistrationPayload('consent', consentRecord), issuer.privateKey, issuer.identity, provenance) };
     oldPath.registerCredential(credential); newPath.registerCredential(credential);
     oldPath.grantConsent(consent); newPath.grantConsent(consent);
     const input = { subject_hash: 'subject:1', consumer_id: 'consumer:1', now: new Date('2026-02-01T00:00:00.000Z') };

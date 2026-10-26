@@ -1,6 +1,7 @@
 import type { ConsentEvaluationOptions, ConsentStateResult, ProtocolConsent } from './consent-types';
 import { validateConsent } from './consent-validator';
 import { revocationLookupFailedStatus } from '../revocation';
+import { verifyConsentObjectProof } from '../../consent/signing';
 
 function resolveConsentRevocationStatus(consent: ProtocolConsent, checkRevocation: ConsentEvaluationOptions['checkRevocation']) {
   try {
@@ -29,6 +30,13 @@ export function evaluateConsentState(
 
   if (consent.action !== 'grant') {
     return { state: 'invalid', reasons: ['Consent action must be grant for active evaluation.'] };
+  }
+
+  // A consent is only active if its subject signed it. Unsigned (legacy) or
+  // altered consents are never active, whatever their dates say.
+  const proof = verifyConsentObjectProof(consent);
+  if (!proof.valid) {
+    return { state: 'invalid', reasons: [proof.reason] };
   }
 
   const revocationStatus = resolveConsentRevocationStatus(consent, opts.checkRevocation);

@@ -1,5 +1,6 @@
 import type { MarketMakerRegistry, MarketMakerStatus } from '../../../shared/marketMakerRegistry';
 import type { CapabilityTokenV1 } from '../../../capability';
+import type { RevocationRegistry } from '../../../capability/registries/RevocationRegistry';
 import type { ConsentObjectV1, ScopeEntry } from '../../../consent/types';
 import type { CapabilityAccessReasonCode } from './reasonCodes';
 
@@ -33,6 +34,7 @@ export type CapabilityAccessMetadata = {
   marketMakerStatus?: MarketMakerStatus;
   failureStage:
     | 'integrity'
+    | 'revocation'
     | 'temporal'
     | 'action'
     | 'resource'
@@ -80,6 +82,13 @@ export type CapabilityAccessRequest = {
     usage?: CapabilityUsageHook;
     policy?: CapabilityPolicyHook;
   };
+  /**
+   * The revocation registry the decision is made against. Required: without it
+   * the decision is REVOCATION_UNAVAILABLE (deny); there is no implicit default.
+   */
+  registries?: {
+    revocationRegistry?: RevocationRegistry;
+  };
 };
 
 export type NormalizedCapability = {
@@ -105,6 +114,7 @@ export type NormalizedCapabilityAccessRequest = {
   usageContext?: Record<string, unknown>;
   policyContext?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  revocationRegistry?: RevocationRegistry;
 };
 
 export type CapabilityAccessDecision = {

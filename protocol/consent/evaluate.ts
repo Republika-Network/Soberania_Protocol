@@ -6,8 +6,31 @@ import {
   type ConsentRequest,
 } from './types';
 import { isValidConsentRecord, isValidConsentRequest } from './validate';
+import { verifyConsentRecordProof } from './consent-record-proof';
+import type { RevocationCheckPort, RevocationStatus } from '../revocation';
 
 const FALLBACK_EVALUATED_AT = '1970-01-01T00:00:00.000Z';
+
+/**
+ * Where a consent record's revocation is decided. The record a caller presents is not an
+ * authority: its `revoked_at` can only take access away, never give it back. The port is
+ * mandatory; without one every decision is DENY_REVOCATION_UNKNOWN. There is no in-memory
+ * default: a deployment wires its own registry.
+ */
+export type ConsentDecisionOptions = {
+  checkRevocation: RevocationCheckPort;
+};
+
+function authoritativeRevocation(consentId: string, options: ConsentDecisionOptions | undefined): RevocationStatus['status'] | 'unknown' {
+  const check = options?.checkRevocation;
+  if (typeof check !== 'function') return 'unknown';
+  try {
+    const status = check({ subjectId: consentId, subjectType: 'consent_grant' });
+    return status && typeof status.status === 'string' ? status.status : 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
 
 function toTimeMs(value: string): number {
   return new Date(value).getTime();
@@ -52,7 +75,8 @@ function resolveConsentId(consent: unknown): string | null {
 
 export function evaluateConsent(
   request: ConsentRequest | unknown,
-  consent: ConsentRecord | null | undefined | unknown
+  consent: ConsentRecord | null | undefined | unknown,
+  options: ConsentDecisionOptions
 ): ConsentDecision {
   const evaluatedAt = resolveEvaluatedAt(request);
   const consentId = resolveConsentId(consent);
@@ -67,6 +91,11 @@ export function evaluateConsent(
 
   if (!isValidConsentRecord(consent)) {
     return toDecision(false, CONSENT_DECISION_REASON_CODES.DENY_INVALID_INPUT, evaluatedAt, consentId);
+  }
+
+  // Only a record signed by its subject grants anything.
+  if (!verifyConsentRecordProof(consent).valid) {
+    return toDecision(false, CONSENT_DECISION_REASON_CODES.DENY_UNAUTHENTICATED, evaluatedAt, consent.consent_id);
   }
 
   if (request.subject_id !== consent.subject_id) {
@@ -98,7 +127,18 @@ export function evaluateConsent(
     return toDecision(false, CONSENT_DECISION_REASON_CODES.DENY_INVALID_INPUT, evaluatedAt, consent.consent_id);
   }
 
-  // Revocation takes effect at the exact timestamp (`>=`) and afterwards.
+  // Revocation is read from the authoritative port, keyed by consent_id. Stripping or editing
+  // the presented record's unsigned fields changes nothing here.
+  const revocation = authoritativeRevocation(consent.consent_id, options);
+  if (revocation === 'revoked') {
+    return toDecision(false, CONSENT_DECISION_REASON_CODES.DENY_REVOKED, evaluatedAt, consent.consent_id);
+  }
+  if (revocation !== 'verified_not_revoked') {
+    return toDecision(false, CONSENT_DECISION_REASON_CODES.DENY_REVOCATION_UNKNOWN, evaluatedAt, consent.consent_id);
+  }
+
+  // A revoked_at on the presented record is advisory and can only deny: it takes effect at the
+  // exact timestamp (`>=`) and afterwards.
   if (consent.revoked_at !== null && requestedAtMs >= toTimeMs(consent.revoked_at)) {
     return toDecision(false, CONSENT_DECISION_REASON_CODES.DENY_REVOKED, evaluatedAt, consent.consent_id);
   }

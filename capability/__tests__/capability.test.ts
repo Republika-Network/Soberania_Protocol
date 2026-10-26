@@ -1,24 +1,34 @@
 import { canonicalCapabilityActions } from '../../shared/capabilityActions';
 import { MarketMakerRegistry } from '../../shared/marketMakerRegistry';
-import { buildConsentObject } from '../../consent/consentObject';
+import { buildConsentObject as buildUnsignedConsentObject } from '../../consent/consentObject';
 import { ScopeEntry } from '../../consent/types';
 import {
   mintCapabilityToken,
   validateCapabilityToken,
-  verifyCapabilityToken,
+  verifyCapabilityToken as verifyCapabilityTokenRaw,
   resetNonceRegistry
 } from '../capabilityToken';
 import { buildCapabilityId } from '../capabilityId';
 import { canonicalizeCapabilityPayload } from '../canonical';
 import { computeCapabilityHash } from '../hash';
-import {
-  revokeCapabilityToken,
-  isRevoked,
-  resetRevocationRegistry
-} from '../revocation';
+import { revokeCapabilityToken, isRevoked } from '../revocation';
+import { testSubjectSigner, signTestConsent } from '../../tests/helpers/consentSigning';
+import { SubjectConsentProofError } from '../../consent';
+import { InMemoryRevocationRegistry } from '../registries/InMemoryRevocationRegistry';
 
-const SUBJECT = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK';
-const GRANTEE = 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH';
+// Every authorization path reads revocation from an injected registry; these
+// tests share one and pass it unless a test supplies its own.
+const revocationRegistry = new InMemoryRevocationRegistry();
+const verifyCapabilityToken: typeof verifyCapabilityTokenRaw = (token, consent, opts, registries) =>
+  verifyCapabilityTokenRaw(token, consent, opts, { revocationRegistry, ...registries });
+
+
+// Consents in these tests are signed by their subject; unsigned consents authorize nothing.
+const buildConsentObject: typeof buildUnsignedConsentObject = (...args) =>
+  signTestConsent(buildUnsignedConsentObject(...args));
+
+const SUBJECT = testSubjectSigner('subject').did;
+const GRANTEE = testSubjectSigner('grantee').did;
 const REF_A = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const REF_B = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 const REF_C = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc';
@@ -58,7 +68,6 @@ function buildBaseConsent(opts: {
 // Reset in-memory registries between tests
 beforeEach(() => {
   resetNonceRegistry();
-  resetRevocationRegistry();
 });
 
 describe('capability token minting', () => {
@@ -850,10 +859,15 @@ describe('capability token verification', () => {
 
     expect(() =>
       verifyCapabilityToken(token, fakeConsent as any, { now: new Date('2025-08-01T00:00:00Z') })
-    ).toThrow('Parent consent action must be "grant".');
+    ).toThrow(SubjectConsentProofError);
+    // Re-pointing a signed revoke at the token breaks its subject proof, so the
+    // action check is a second line of defence behind it.
+    expect(() =>
+      verifyCapabilityToken(token, revoke, { now: new Date('2025-08-01T00:00:00Z') })
+    ).toThrow('Capability consent_ref does not match parent consent consent_hash.');
   });
 
-  it('rejects verification when subject does not match', () => {
+  it('rejects verification when the consent subject is altered after signing', () => {
     const consent = buildBaseConsent();
     const token = mintCapabilityToken(
       consent, baseScope, basePermissions, tokenExpires, { now: tokenNow }
@@ -863,10 +877,10 @@ describe('capability token verification', () => {
 
     expect(() =>
       verifyCapabilityToken(token, mismatchConsent as any, { now: new Date('2025-08-01T00:00:00Z') })
-    ).toThrow('Capability subject does not match parent consent subject.');
+    ).toThrow(SubjectConsentProofError);
   });
 
-  it('rejects verification when grantee does not match', () => {
+  it('rejects verification when the consent grantee is altered after signing', () => {
     const consent = buildBaseConsent();
     const token = mintCapabilityToken(
       consent, baseScope, basePermissions, tokenExpires, { now: tokenNow }
@@ -876,7 +890,7 @@ describe('capability token verification', () => {
 
     expect(() =>
       verifyCapabilityToken(token, mismatchConsent as any, { now: new Date('2025-08-01T00:00:00Z') })
-    ).toThrow('Capability grantee does not match parent consent grantee.');
+    ).toThrow(SubjectConsentProofError);
   });
 });
 
@@ -1053,8 +1067,8 @@ describe('capability token — revoked token rejection', () => {
       consent, baseScope, basePermissions, tokenExpires, { now: tokenNow }
     );
 
-    revokeCapabilityToken(token.capability_hash);
-    expect(isRevoked(token.capability_hash)).toBe(true);
+    revokeCapabilityToken(token.capability_hash, revocationRegistry);
+    expect(isRevoked(token.capability_hash, revocationRegistry)).toBe(true);
 
     expect(() =>
       verifyCapabilityToken(token, consent, { now: new Date('2025-08-01T00:00:00Z') })
@@ -1067,7 +1081,7 @@ describe('capability token — revoked token rejection', () => {
       consent, baseScope, basePermissions, tokenExpires, { now: tokenNow }
     );
 
-    expect(isRevoked(token.capability_hash)).toBe(false);
+    expect(isRevoked(token.capability_hash, revocationRegistry)).toBe(false);
 
     expect(() =>
       verifyCapabilityToken(token, consent, { now: new Date('2025-08-01T00:00:00Z') })
@@ -1083,15 +1097,15 @@ describe('capability token — revoked token rejection', () => {
       consent, baseScope, basePermissions, tokenExpires, { now: tokenNow }
     );
 
-    revokeCapabilityToken(token1.capability_hash);
+    revokeCapabilityToken(token1.capability_hash, revocationRegistry);
 
-    expect(isRevoked(token1.capability_hash)).toBe(true);
-    expect(isRevoked(token2.capability_hash)).toBe(false);
+    expect(isRevoked(token1.capability_hash, revocationRegistry)).toBe(true);
+    expect(isRevoked(token2.capability_hash, revocationRegistry)).toBe(false);
   });
 
   it('rejects revocation with invalid hash format', () => {
-    expect(() => revokeCapabilityToken('INVALID')).toThrow(
-      'Revocation target must be a valid capability_hash (64 lowercase hex characters).'
+    expect(() => revokeCapabilityToken('INVALID', revocationRegistry)).toThrow(
+      'Revocation target capability_hash must be a valid 64-character lowercase hex hash.'
     );
   });
 });

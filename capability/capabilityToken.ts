@@ -1,8 +1,9 @@
 import crypto from 'node:crypto';
 import { ConsentObjectV1, ScopeEntry } from '../consent/types';
+import { assertConsentObjectAuthenticated } from '../consent/signing';
 import { canonicalizeCapabilityPayload } from './canonical';
 import { computeCapabilityHash } from './hash';
-import { isRevoked } from './revocation';
+import { readRevocation } from './revocation';
 import { validateMarketMakerId } from '../shared/marketMakerId';
 import { validateCapabilityActions } from '../shared/capabilityActions';
 import type { MarketMakerRegistry } from '../shared/marketMakerRegistry';
@@ -190,12 +191,17 @@ function generateTokenId(): string {
  * - Token must have a finite expires_at
  */
 export function mintCapabilityToken(
-  consent: ConsentObjectV1,
+  parentConsent: ConsentObjectV1,
   scope: ScopeEntry[],
   permissions: string[],
   expires_at: string,
   opts: MintCapabilityOptions = {}
 ): CapabilityTokenV1 {
+  // Mint only from a consent its subject signed, and derive from the copy that
+  // was verified.
+  const consent = JSON.parse(JSON.stringify(parentConsent)) as ConsentObjectV1;
+  assertConsentObjectAuthenticated(consent);
+
   // Derivation: parent consent must be a grant
   if (consent.action !== 'grant') {
     throw new Error(
@@ -425,12 +431,16 @@ export function validateCapabilityToken(
  */
 export function verifyCapabilityToken(
   token: CapabilityTokenV1,
-  consent: ConsentObjectV1,
+  parentConsent: ConsentObjectV1,
   opts: { now?: Date } = {},
   registries?: { nonceRegistry?: NonceRegistry; revocationRegistry?: RevocationRegistry }
 ): void {
   // 1. Structural integrity
   validateCapabilityToken(token);
+
+  // The parent consent must be signed by its subject.
+  const consent = JSON.parse(JSON.stringify(parentConsent)) as ConsentObjectV1;
+  assertConsentObjectAuthenticated(consent);
 
   // 2. Consent ref must match
   if (token.consent_ref !== consent.consent_hash) {
@@ -503,9 +513,19 @@ export function verifyCapabilityToken(
     throw new Error('Capability token is not yet valid (before not_before).');
   }
 
-  // 10. Revocation check
-  const revocationRegistry = registries?.revocationRegistry;
-  if (isRevoked(token.capability_hash, revocationRegistry)) {
+  // 10. Revocation check: the consent this token references, then the token
+  // itself, read from the injected registry only (no registry → no access).
+  const revocation = readRevocation(registries?.revocationRegistry, {
+    capability_hash: token.capability_hash,
+    consent_hash: consent.consent_hash
+  });
+  if (revocation.state === 'unavailable') {
+    throw new Error(`Revocation status could not be determined: ${revocation.reason}`);
+  }
+  if (revocation.state === 'revoked_consent') {
+    throw new Error('Parent consent has been revoked by its subject.');
+  }
+  if (revocation.state === 'revoked_capability') {
     throw new Error('Capability token has been revoked.');
   }
 
