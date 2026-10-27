@@ -25,10 +25,7 @@
       "path": "../consent-runtime"
     },
     {
-      "path": "../audit-runtime"
-    },
-    {
-      "path": "../trust-registry-runtime"
+      "path": "../../crypto"
     }
   ]
 }
