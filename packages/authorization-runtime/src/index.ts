@@ -1,9 +1,82 @@
-import { AuditRuntime } from "@aoc-runtime/audit-runtime";
 import { CapabilityRuntime } from "@aoc-runtime/capability-runtime";
 import { ConsentRuntime } from "@aoc-runtime/consent-runtime";
 import { GovernanceRuntime } from "@aoc-runtime/governance-runtime";
-import { ActorRef, AuthorizationDecisionEnvelope, AuthorizationFailedStage, GovernanceScope, NamespaceRef, GovernanceSignature, TrustBoundaryScope } from "@aoc-runtime/shared-types";
-import { FederatedAuthorityClaims, FederatedAuthorityVerifier, VerifiedFederatedAuthority } from "@aoc-runtime/trust-registry-runtime";
+import type { TrustedSigningKey } from "@aoc-runtime/crypto";
+import { ActorRef, ActorType, AuthorizationDecisionEnvelope, AuthorizationFailedStage, GovernanceScope, NamespaceRef, GovernanceSignature, TrustBoundaryScope } from "@aoc-runtime/shared-types";
+
+/**
+ * The decision shape handed to an audit finalizer. Structurally identical to
+ * `RuntimeDecisionEnvelope` in `@aoc/enterprise/assurance/audit`, declared here
+ * so this package's declarations depend only on the runtime packages it ships
+ * with.
+ */
+export interface FinalizableDecision {
+  decision: "allow" | "deny";
+  allowed: boolean;
+  failedStage?: AuthorizationFailedStage;
+  reasoningChain: string[];
+  obligations: unknown[];
+  provenance: Record<string, unknown>;
+  explainability: Record<string, unknown>;
+}
+
+/**
+ * What `AuthorizationRuntime` requires of its audit dependency, and all it
+ * calls: annotate an already-final decision and return it. `AuditRuntime` from
+ * `@aoc/enterprise/assurance/audit` satisfies it.
+ */
+export interface AuthorizationDecisionFinalizer {
+  finalizeDecision<T extends FinalizableDecision>(decision: T): T;
+}
+
+/** Signed alongside a federated request. Structurally identical to the type of the same name in `@aoc/enterprise/assurance/trust`. */
+export interface FederatedAuthorityClaims {
+  audience: string;
+  issuedAt: string;
+  expiresAt: string;
+  nonce: string;
+}
+
+/** The request a federated authority signature is bound to. Structurally identical to the type of the same name in `@aoc/enterprise/assurance/trust`. */
+export interface FederatedAuthorityRequest {
+  actor: { actorId: string; actorType: ActorType; organizationId: string };
+  machineActorId?: string;
+  action: string;
+  resource: string;
+  scopeId: string;
+  namespace: NamespaceRef;
+  trustScope: TrustBoundaryScope;
+}
+
+/** Only what a successful verification authenticated. Structurally identical to the type of the same name in `@aoc/enterprise/assurance/trust`. */
+export interface VerifiedFederatedAuthority {
+  verified: true;
+  signer: TrustedSigningKey;
+  claims: FederatedAuthorityClaims;
+  trustScope: TrustBoundaryScope;
+  trustedAuthorityPath: string[];
+}
+
+/** The fields of a verification result this runtime reads. `FederatedAuthorityVerification` in `@aoc/enterprise/assurance/trust` satisfies it. */
+export interface FederatedAuthorityVerificationResult {
+  trusted: boolean;
+  rejectedAuthorityPath: string[];
+  revokedIntermediaries: string[];
+  authority?: VerifiedFederatedAuthority;
+}
+
+/**
+ * What `AuthorizationRuntime` requires of a federated authority verifier, and
+ * all it calls. `FederatedAuthorityVerifier` from `@aoc/enterprise/assurance/trust`
+ * satisfies it.
+ */
+export interface FederatedAuthorityVerifierPort {
+  verify(
+    request: FederatedAuthorityRequest,
+    assertion: { claims: FederatedAuthorityClaims; signature: GovernanceSignature },
+    options?: { requestedAt?: string }
+  ): Promise<FederatedAuthorityVerificationResult>;
+}
 
 export type PolicyValue = string | number | boolean | null | string[] | number[] | boolean[];
 
@@ -380,8 +453,8 @@ export class AuthorizationRuntime {
     private readonly governance: GovernanceRuntime,
     private readonly capability: CapabilityRuntime,
     private readonly consent: ConsentRuntime,
-    private readonly audit: AuditRuntime,
-    private readonly federatedAuthorityVerifier?: FederatedAuthorityVerifier
+    private readonly audit: AuthorizationDecisionFinalizer,
+    private readonly federatedAuthorityVerifier?: FederatedAuthorityVerifierPort
   ) {}
 
   async evaluate(input: AuthorizationInput): Promise<AuthorizationDecision> {

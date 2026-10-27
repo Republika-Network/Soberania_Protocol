@@ -25,6 +25,9 @@
       "path": "../../packages/authorization-runtime"
     },
     {
+      "path": "../../packages/audit-runtime"
+    },
+    {
       "path": "../../crypto"
     }
   ]
