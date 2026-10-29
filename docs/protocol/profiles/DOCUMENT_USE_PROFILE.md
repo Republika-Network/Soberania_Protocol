@@ -150,6 +150,21 @@ evaluator returns exactly one of `ALLOWED`, `DENIED` or `WITHHELD`, applying the
 - **Gap:** rc.3 deliberately evaluates neither field (`licensing/validation.ts`), and RSDK-01 reads no clock
   (`freshness: 'not_evaluated'`). An expired claim verifies, and the `expired-terms` fixture pins that.
 
+### Audience (normative)
+
+How each `SovereignLicenseTermsAudience` kind is matched against the receiver (founder decision, FV-P3.1):
+
+- **`Principal`:** the terms are addressed to exactly that principal. A receiver matches only when its own
+  trusted identity equals `principal` exactly: no case folding, trimming, prefix or pattern matching.
+- **`Public`:** the terms are addressed to any receiver. This does **not** mean the document is publicly
+  accessible, and it authorizes no operation. A receiver under a `Public` audience is still subject to every
+  rule (`Permission`, `Restriction`, `Obligation`), to the time bounds, to the asset binding and to
+  eligibility, and must still present a trusted identity. No audience turns a `Restriction` into a
+  `Permission`.
+- **`Custom`:** not interpreted by this profile version, so every action is `DENIED`.
+
+The fixtures use a `Principal` audience. Frontera's FV-P3 evaluator covers the `Public` cases.
+
 ## 5. Receiver preconditions (normative)
 
 A receiver may declare an asset **eligible for evaluation** only when *all* of the following hold. If any
@@ -238,6 +253,9 @@ wired to run it. Rows 4 and 8–13 are what a document-use/1 receiver adds on to
 - A future version is expected to add an owner-signed status statement with a monotonic sequence and a
   `validUntil`, refused when stale. The behaviour when connectivity is missing would be the owner's declared
   maximum staleness, failing closed. This is **draft direction only, not a normative part of this profile**.
+  The statement is now proposed as [`soberania.sovereign-status/1`](SOVEREIGN_STATUS_PROFILE.md) (FV-P4B).
+  That profile defines the signed status and how one status is verified. Freshness and replay detection stay
+  out of it, so every limit in this section still holds.
 - Until then, revocation stops nothing: a receiver holding a valid bundle keeps a valid bundle.
 
 ## 9. Guarantees
