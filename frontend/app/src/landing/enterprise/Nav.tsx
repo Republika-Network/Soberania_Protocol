@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LogoRotating } from '../../components/logo/LogoRotating';
 import { ENTERPRISE_NAV_ITEMS, isNavGroup, type NavEntry } from './content';
+import { fronteraAssessmentHref } from '../fronteraCommercial';
 
 function isActiveHref(href: string) {
   if (typeof window === 'undefined') return false;
@@ -201,10 +202,10 @@ export function EnterpriseNav() {
 
           <div className="flex items-center gap-3 ml-auto lg:ml-0 shrink-0">
             <a
-              href="mailto:hello@aocprotocol.xyz?subject=Soberan%C3%ADa%20Enterprise%20%E2%80%94%20Technical%20Assessment%20Request"
+              href={fronteraAssessmentHref('enterprise-nav')}
               className="hidden md:inline-flex items-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors whitespace-nowrap"
             >
-              Request Technical Assessment
+              Frontera Technical Assessment
             </a>
             <button
               type="button"
@@ -228,10 +229,10 @@ export function EnterpriseNav() {
                 <MobileNavEntry key={entry.label} entry={entry} onNavigate={() => setOpen(false)} />
               ))}
               <a
-                href="mailto:hello@aocprotocol.xyz?subject=Soberan%C3%ADa%20Enterprise%20%E2%80%94%20Technical%20Assessment%20Request"
+                href={fronteraAssessmentHref('enterprise-nav-mobile')}
                 className="mt-2 inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white"
               >
-                Request Technical Assessment
+                Frontera Technical Assessment
               </a>
             </div>
           </div>
