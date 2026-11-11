@@ -1,8 +1,9 @@
 import { PipelineRail, SectionHeader } from '../primitives';
 import { ASSESSMENT_STEPS } from './content';
+import { fronteraAssessmentHref } from '../../fronteraCommercial';
 
-const EMAIL = 'hello@aocprotocol.xyz';
-const CTA_HREF = `mailto:${EMAIL}?subject=${encodeURIComponent('Governed Access — Technical Assessment Request')}`;
+// SOBE-MKT-00: was a mailto to hello@aocprotocol.xyz (domain no longer resolves).
+const CTA_HREF = fronteraAssessmentHref('governed-access-assessment');
 
 // Closing section: the engagement funnel (light), followed by the single
 // commercial CTA (dark bookend, matching ../CtaSection.tsx). Deliberately
@@ -35,7 +36,7 @@ export function Assessment() {
             href={CTA_HREF}
             className="mt-10 inline-flex items-center gap-2.5 rounded-full bg-teal-600 px-8 py-4 text-sm font-bold text-white shadow-[0_8px_24px_rgba(15,23,42,0.08)] transition-transform hover:-translate-y-0.5 hover:bg-teal-500"
           >
-            Request Technical Assessment
+            Request a Technical Assessment from Frontera Systems
             <svg viewBox="0 0 256 256" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden="true">
               <path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z" />
             </svg>

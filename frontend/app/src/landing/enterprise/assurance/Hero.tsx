@@ -1,7 +1,8 @@
 import { LogoRotating } from '../../../components/logo/LogoRotating';
+import { fronteraAssessmentHref } from '../../fronteraCommercial';
 
-const EMAIL = 'hello@aocprotocol.xyz';
-const CTA_HREF = `mailto:${EMAIL}?subject=${encodeURIComponent('Soberanía Assurance — Technical Assessment Request')}`;
+// SOBE-MKT-00: was a mailto to hello@aocprotocol.xyz (domain no longer resolves).
+const CTA_HREF = fronteraAssessmentHref('assurance-hero');
 
 // Dark bookend, matching the visual rhythm of governed-access/Hero.tsx and
 // ../CtaSection.tsx: light-primary page, dark hero + closing CTA. One H1,
@@ -32,7 +33,7 @@ export function Hero() {
           href={CTA_HREF}
           className="mt-10 inline-flex items-center justify-center rounded-full bg-emerald-600 px-7 py-3.5 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors"
         >
-          Request Technical Assessment
+          Request a Technical Assessment from Frontera Systems
         </a>
 
         <p className="mt-8 max-w-xl text-sm text-slate-500">

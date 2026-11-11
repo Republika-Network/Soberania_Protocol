@@ -1,3 +1,5 @@
+import { fronteraAssuranceHref, fronteraGovernedAccessHref, fronteraHomeHref } from './fronteraCommercial';
+
 // Top-level "About" page for the Soberanía ecosystem as a whole — distinct from
 // the Assurance-specific About page in AssuranceSupportPages.tsx. Its job
 // is to make the Protocol -> Enterprise -> Solutions/Services hierarchy
@@ -10,11 +12,11 @@ export const renderAboutPage = () => {
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
           <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300/70">About Soberanía</p>
           <h1 className="mt-4 text-5xl font-semibold tracking-tight md:text-6xl">
-            One foundation. One commercial umbrella.
+            One open foundation. One commercial provider.
           </h1>
           <p className="mt-6 max-w-3xl text-lg leading-8 text-white/65">
-            Soberanía Protocol defines the open foundation. Soberanía Enterprise commercializes it, offering
-            Solutions and Services built on top of that foundation.
+            Soberanía Protocol defines the open foundation. Frontera Systems is the commercial provider that
+            builds on it, offering Solutions and Services to organizations.
           </p>
         </div>
       </section>
@@ -35,29 +37,28 @@ export const renderAboutPage = () => {
             </article>
 
             <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-              <p className="text-sm font-semibold text-cyan-200">Soberanía Enterprise</p>
+              <p className="text-sm font-semibold text-cyan-200">Frontera Systems</p>
               <p className="mt-3 text-sm leading-7 text-white/65">
-                The commercial implementation of Soberanía Protocol. Enterprise is the umbrella under
-                which Solutions and Services are offered to organizations composing an
-                architecture on top of the protocol.
+                The commercial provider built on Soberanía Protocol. Frontera offers pilots, assessments and
+                governed-execution solutions to organizations, and is where commercial enquiries go.
               </p>
-              <a href="/?view=enterprise" className="mt-5 inline-block text-sm font-semibold text-cyan-300 hover:text-cyan-200 transition-colors">
-                Explore Soberanía Enterprise &rarr;
+              <a href={fronteraHomeHref('about-page')} className="mt-5 inline-block text-sm font-semibold text-cyan-300 hover:text-cyan-200 transition-colors">
+                Visit Frontera Systems &rarr;
               </a>
             </article>
 
             <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
               <p className="text-sm font-semibold text-cyan-200">Solutions &amp; Services</p>
               <p className="mt-3 text-sm leading-7 text-white/65">
-                Governed Access is Enterprise&apos;s first Solution. Assurance is an Enterprise
-                Service that assesses how sovereign, governed, and operationally mature a
-                customer&apos;s platform is.
+                Governed Access is a Frontera Solution. Assurance is a Frontera Service that
+                assesses how sovereign, governed, and operationally mature a customer&apos;s
+                platform is.
               </p>
               <div className="mt-5 flex flex-col gap-2 text-sm font-semibold">
-                <a href="/?view=governed-access" className="text-cyan-300 hover:text-cyan-200 transition-colors">
+                <a href={fronteraGovernedAccessHref('about-page')} className="text-cyan-300 hover:text-cyan-200 transition-colors">
                   Governed Access (Solution) &rarr;
                 </a>
-                <a href="/?view=assurance" className="text-cyan-300 hover:text-cyan-200 transition-colors">
+                <a href={fronteraAssuranceHref('about-page')} className="text-cyan-300 hover:text-cyan-200 transition-colors">
                   Assurance (Service) &rarr;
                 </a>
               </div>
@@ -74,7 +75,7 @@ export const renderAboutPage = () => {
               Soberanía Protocol <span className="text-white/35">— open foundation</span>
             </div>
             <div className="ml-6 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-4 text-white/80">
-              &darr; Soberanía Enterprise <span className="text-white/35">— commercial umbrella</span>
+              &darr; Frontera Systems <span className="text-white/35">— commercial provider</span>
             </div>
             <div className="ml-12 flex flex-col gap-3 sm:flex-row">
               <div className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-4 text-white/70">
