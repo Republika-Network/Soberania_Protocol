@@ -119,7 +119,7 @@ export const CAPABILITY_FAMILIES: CapabilityFamily[] = [
     name: 'Licensing & Terms',
     status: 'Reference Model',
     summary:
-      'Carries machine-readable terms for how the asset may be accessed, used or shared. Declared terms are not enforcement, legal validity or an access grant.',
+      'Carries machine-readable declarations of how the asset may be accessed, used or shared. Declared terms are not an access grant, runtime enforcement, legal validity or guaranteed compliance, and participating applications do not enforce them automatically.',
   },
   {
     id: 'governance-compatibility',

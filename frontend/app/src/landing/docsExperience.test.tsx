@@ -136,9 +136,11 @@ describe('package naming (QA-02)', () => {
   });
 
   it('never presents an npm installation of the new names or of a legacy scope', () => {
+    // Optional flags are matched as `(?:-\S+\s+)*`: each token starts with `-` and `\S+` cannot cross whitespace,
+    // so the match is unambiguous and runs in linear time (CodeQL js/redos). Same flag tokens as `--?\S+`.
     const text = pageText().textContent!;
-    expect(text).not.toMatch(/\b(npm\s+(i|install|add)|yarn\s+add|pnpm\s+(add|i|install))\s+(--?\S+\s+)*@soberania-protocol/);
-    expect(text).not.toMatch(/\b(npm\s+(i|install|add)|yarn\s+add|pnpm\s+(add|i|install))\s+(--?\S+\s+)*@aoc/);
+    expect(text).not.toMatch(/\b(npm\s+(i|install|add)|yarn\s+add|pnpm\s+(add|i|install))\s+(?:-\S+\s+)*@soberania-protocol/);
+    expect(text).not.toMatch(/\b(npm\s+(i|install|add)|yarn\s+add|pnpm\s+(add|i|install))\s+(?:-\S+\s+)*@aoc/);
     expect(text).not.toMatch(/(available|published) on npm(?! today)/i);
     expect(text).toContain('There is no npm install command for Soberanía Protocol yet.');
   });
