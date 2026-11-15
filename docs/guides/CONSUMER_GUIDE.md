@@ -55,16 +55,17 @@ Note that the checksum is per-build: the artifact Soberanía Enterprise pinned h
 `7d0d42a5…d9841` — always compare against the manifest entry for the build you were handed
 (full history in [`docs/release/RELEASE_CANDIDATE_READINESS.md`](../release/RELEASE_CANDIDATE_READINESS.md)).
 
-Vendor the tarball in your repository (as Soberanía Enterprise does under `vendor/`) so installs are
+Vendor the tarball in your repository (as Frontera does under `vendor/`) so installs are
 reproducible and auditable.
 
 ## Installation in the future: registry
 
 **Unavailable today.** If a founder-approved decision publishes the package (see
 [`docs/release/REGISTRY_READINESS.md`](../release/REGISTRY_READINESS.md)), installation would become
-`npm install @aoc/protocol` (or a scoped-registry equivalent for GitHub Packages). Do not write
-tooling that assumes the registry package exists, and do not assume the `@aoc` scope is controlled —
-neither is verified yet.
+`npm install @soberania-protocol/protocol` under the approved public name; see
+[`docs/getting-started/PACKAGE_IDENTITY.md`](../getting-started/PACKAGE_IDENTITY.md). That package does
+not exist on npm yet. Do not write tooling that assumes it exists, and never resolve `@aoc/*` from the
+public registry: this project does not control the `@aoc` scope there.
 
 ## The root export
 

@@ -15,16 +15,25 @@ This repository is not the enterprise runtime implementation.
 
 ## Layering
 
-- Soberanía Protocol: contracts, semantics, interfaces
-- Soberanía Enterprise: runtime, persistence, APIs, SDK implementation
-- PMFreak: vertical PM product consuming Soberanía layers
+- Soberanía Protocol: contracts, semantics, interfaces. It has no runtime dependencies and does not
+  require Frontera Systems or any hosted service.
+- Frontera Systems: an optional commercial product built on the protocol (it replaced the retired
+  "Soberanía Enterprise" brand).
+- Other consumers adopt individual capabilities through the package's declared entry points.
 
 ### Technical namespace
 
-Soberanía Protocol preserves the existing `aoc` technical namespace for compatibility. Package names,
-protocol identifiers, URI schemes, and public API symbols using `aoc` or `AOC` remain unchanged unless
-explicitly versioned otherwise. This is intentional and does not affect the Soberanía Protocol product
-identity.
+Soberanía Protocol preserves the existing `aoc` technical namespace for compatibility. Protocol
+identifiers (for example `aoc-canonical-json/1`), URI schemes and public API symbols using `aoc` or
+`AOC` remain unchanged unless explicitly versioned otherwise. This is intentional and does not affect
+the Soberanía Protocol product identity.
+
+**Package names are the exception.** The approved public distribution names are
+`@soberania-protocol/protocol` and `@soberania-protocol/sdk`, under the project's npm organization.
+They are **prepared for publication, not published**: no install command works yet. Until then, the
+workspace package is `@aoc/protocol` and is consumed as a local tarball. Never resolve `@aoc/*` or
+`@aoc-runtime/*` from the public npm registry; this project does not control those scopes there. See
+[`docs/getting-started/PACKAGE_IDENTITY.md`](docs/getting-started/PACKAGE_IDENTITY.md).
 
 ## Soberanía Protocol package (`packages/protocol`)
 

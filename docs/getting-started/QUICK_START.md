@@ -54,12 +54,16 @@ If and when a founder-approved publish decision is made (see
 `docs/release/PACKAGE_DISTRIBUTION_STRATEGY.md` and `docs/release/PRERELEASE_POLICY.md`),
 installation will become:
 
+the package will be published under its approved public name, **not** as `@aoc/protocol`:
+
 ```bash
-npm install @aoc/protocol            # stable
-npm install @aoc/protocol@rc         # or @next — prerelease channel, exact-pin it
+# NOT AVAILABLE YET: these packages do not exist on npm today.
+npm install --save-exact @soberania-protocol/protocol@<version>
 ```
 
-That has **not** happened yet. Do not assume the name is reserved or the package exists on npm.
+That has **not** happened yet. Today the command returns 404. Never install `@aoc/protocol` from the
+public registry: this project does not control the `@aoc` scope there. For the name mapping and the
+migration steps, see [PACKAGE_IDENTITY.md](PACKAGE_IDENTITY.md).
 
 ## 5. Import from the root
 
