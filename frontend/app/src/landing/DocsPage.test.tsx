@@ -48,7 +48,7 @@ describe('public Protocol developer journey', () => {
   it('announces the future npm names without an install command that would fail today', () => {
     const { container } = render(<DocsPage />);
 
-    expect(container.querySelector('#package-identity')).toHaveTextContent('Prepared for upcoming publication');
+    expect(container.querySelector('#identity-upcoming')).toHaveTextContent('Upcoming · not published');
     expect(container).toHaveTextContent('@soberania-protocol/protocol');
     expect(container).toHaveTextContent('@soberania-protocol/sdk');
     expect(container).not.toHaveTextContent(/npm (i|install) @soberania-protocol/);
