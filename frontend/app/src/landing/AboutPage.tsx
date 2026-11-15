@@ -95,7 +95,7 @@ export const renderAboutPage = () => {
             <h2 className="text-3xl font-semibold tracking-tight">Keep exploring</h2>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a
-                href="/?view=docs"
+                href="/docs"
                 className="inline-flex items-center justify-center rounded-xl border border-cyan-300/40 px-6 py-3 text-sm font-semibold text-cyan-200 transition hover:border-cyan-300/70 hover:bg-cyan-300/10"
               >
                 Developer docs

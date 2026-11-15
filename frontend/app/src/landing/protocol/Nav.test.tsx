@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ProtocolNav } from './Nav';
@@ -38,8 +38,17 @@ describe('Protocol navigation', () => {
     expect(screen.getByRole('link', { name: 'Sovereign Sphere' })).toHaveAttribute('href', '/#sovereign-sphere');
     expect(screen.getByRole('link', { name: 'Digital Assets' })).toHaveAttribute('href', '/#digital-asset');
     expect(screen.getByRole('link', { name: 'For Builders' })).toHaveAttribute('href', '/#developers');
-    expect(screen.getByRole('link', { name: 'Docs' })).toHaveAttribute('href', '/?view=docs');
+    expect(screen.getByRole('link', { name: 'Docs' })).toHaveAttribute('href', '/docs');
     expect(screen.getByRole('link', { name: /Explore the protocol/ })).toHaveAttribute('href', '/#sovereign-sphere');
     expect(screen.queryByRole('link', { name: 'Launch App' })).not.toBeInTheDocument();
+  });
+
+  it('offers no link to a non-existent app route in the mobile drawer', () => {
+    render(<ProtocolNav />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }));
+
+    expect(screen.queryByRole('link', { name: /launch app/i })).not.toBeInTheDocument();
+    for (const link of screen.getAllByRole('link')) expect(link).not.toHaveAttribute('href', '/app');
   });
 });

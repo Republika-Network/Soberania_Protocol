@@ -1,5 +1,6 @@
 import { Breadcrumbs } from './components/Breadcrumbs';
 import { REPOSITORY_URL } from './brand';
+import { useRouteMeta } from './protocol/useRouteMeta';
 const repositoryPath = (path: string) => `${REPOSITORY_URL}/blob/main/${path}`;
 const repositoryDirectory = (path: string) => `${REPOSITORY_URL}/tree/main/${path}`;
 
@@ -23,7 +24,17 @@ const assetProperties = [
   ['Compatibility', 'Public schemas and adapter interfaces provide common meaning; support still depends on each implementation.'],
 ];
 
-export const renderDocsPage = () => {
+export const renderDocsPage = () => <DocsPage />;
+
+const DOCS_META = {
+  path: '/docs',
+  title: 'Documentation — Soberanía Protocol',
+  description:
+    'Developer documentation for Soberanía Protocol: public contract entry points, the sovereign asset model, build-from-source instructions and the current availability of each component.',
+};
+
+function DocsPage() {
+  useRouteMeta(DOCS_META);
   const LinkCard = ({ href, title, children }: { href: string; title: string; children: React.ReactNode }) => (
     <a
       href={href}
@@ -95,11 +106,26 @@ export const renderDocsPage = () => {
             storage adapter or complete runtime. Start by cloning the repository, installing dependencies and building
             the package from source.
           </p>
-          <pre className="mt-8 overflow-x-auto rounded-2xl border border-white/10 bg-black/40 p-6 text-sm leading-7 text-cyan-100"><code>{`git clone ${REPOSITORY_URL}.git\ncd Architects_of_Change_Protocol\nnpm ci\nnpm run build --workspace @aoc/protocol\nnpm run protocol:pack:check`}</code></pre>
+          <pre className="mt-8 overflow-x-auto rounded-2xl border border-white/10 bg-black/40 p-6 text-sm leading-7 text-cyan-100"><code>{`git clone ${REPOSITORY_URL}.git\ncd Soberania_Protocol\nnpm ci\nnpm run build --workspace @aoc/protocol\nnpm run protocol:pack:check`}</code></pre>
           <p className="mt-4 text-sm leading-7 text-amber-200/75">
-            Current distribution status: version 0.1.0 is pre-1.0 and the package is not published to a registry.
-            Consume a locally built tarball; breaking changes remain possible.
+            Current distribution status: the workspace package <code>@aoc/protocol</code> is at release candidate
+            0.2.0-rc.3. It is pre-1.0 and not published to any registry. Consume a locally built, checksummed tarball;
+            breaking changes remain possible.
           </p>
+          <div id="package-identity" className="mt-8 rounded-2xl border border-violet-300/25 bg-violet-300/[0.04] p-6">
+            <p className="text-xs font-semibold uppercase tracking-wider text-violet-200">Prepared for upcoming publication · not yet available</p>
+            <p className="mt-3 text-sm leading-7 text-white/65">
+              When publication is approved, the protocol and the optional SDK will be distributed under the
+              project's npm organization as <code className="text-violet-100">@soberania-protocol/protocol</code> and{' '}
+              <code className="text-violet-100">@soberania-protocol/sdk</code>. Neither package exists on npm today, so
+              there is no install command yet. Subpath entry points stay the same; only the package name in import
+              specifiers changes.
+            </p>
+            <p className="mt-3 text-sm leading-7 text-white/65">
+              Never install <code>@aoc/*</code> or <code>@aoc-runtime/*</code> from the public npm registry. This
+              project does not control those scopes there. Keep them as local <code>file:</code> tarballs until you migrate.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -187,8 +213,8 @@ export const renderDocsPage = () => {
               <p className="mt-3 text-sm leading-7 text-white/65">Owns provider-independent asset semantics, public contract shapes, references and adapter interfaces.</p>
             </article>
             <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-              <h3 className="font-semibold text-white">Soberanía Enterprise · organizational governance</h3>
-              <p className="mt-3 text-sm leading-7 text-white/65">May use Protocol-compatible assets in proprietary governance and enforcement workflows. Enterprise implementation internals are intentionally not documented on this public surface.</p>
+              <h3 className="font-semibold text-white">Frontera Systems · optional commercial layer</h3>
+              <p className="mt-3 text-sm leading-7 text-white/65">One product that uses Protocol-compatible assets in governance and enforcement workflows. The protocol has no dependency on Frontera: you can adopt any capability without it. Frontera internals are not documented on this public surface.</p>
             </article>
           </div>
         </div>
@@ -216,4 +242,4 @@ export const renderDocsPage = () => {
       </section>
     </main>
   );
-};
+}

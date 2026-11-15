@@ -70,7 +70,7 @@ function ContactPage() {
               <a href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Soberanía Protocol Inquiry')}`} className={SECONDARY}>
                 Email Soberanía Protocol
               </a>
-              <a href="/?view=docs" className={SECONDARY}>
+              <a href="/docs" className={SECONDARY}>
                 Review Docs
               </a>
             </div>

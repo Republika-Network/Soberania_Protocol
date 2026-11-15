@@ -39,6 +39,6 @@ describe('Developers orbital composition', () => {
       'href',
       'https://github.com/Republika-Network/Soberania_Protocol/tree/main/packages/protocol',
     );
-    expect(screen.getByRole('link', { name: 'Read the docs' })).toHaveAttribute('href', '/?view=docs');
+    expect(screen.getByRole('link', { name: 'Read the docs' })).toHaveAttribute('href', '/docs');
   });
 });

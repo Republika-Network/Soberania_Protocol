@@ -30,7 +30,7 @@ export function CtaSection() {
         </a>
 
         <div className="mt-6 text-sm">
-          <a href="/?view=docs" className={`${m.onDark} hover:text-violet-200`}>
+          <a href="/docs" className={`${m.onDark} hover:text-violet-200`}>
             Read the Docs
           </a>
         </div>

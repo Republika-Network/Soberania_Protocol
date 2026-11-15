@@ -16,7 +16,7 @@ export function Developers() {
             <a href={PROTOCOL_PACKAGE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center bg-violet-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-violet-600">
               View protocol source on GitHub
             </a>
-            <a href="/?view=docs" className="inline-flex items-center justify-center border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400">
+            <a href="/docs" className="inline-flex items-center justify-center border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400">
               Read the docs
             </a>
           </div>

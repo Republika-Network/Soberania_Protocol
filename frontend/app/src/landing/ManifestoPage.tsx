@@ -1,4 +1,5 @@
 import { Breadcrumbs } from './components/Breadcrumbs';
+import { useRouteMeta } from './protocol/useRouteMeta';
 
 const principles = [
   ['Identity', 'Your identity remains yours.', 'A platform, custodian, employer, application, network, or autonomous agent should not become the owner of a person\'s identity merely because it stores, authenticates, processes, or represents it.'],
@@ -48,13 +49,22 @@ const BodySection = ({
   </section>
 );
 
+const MANIFESTO_META = {
+  path: '/docs/manifesto',
+  title: 'Soberanía Manifesto v2.0 (draft) — Soberanía Protocol',
+  description:
+    'The Soberanía Manifesto v2.0, published as a draft for review and ratification: human sovereignty, explicit authority, bounded autonomy, consent, evidence, portability and the right to exit.',
+  ogType: 'article' as const,
+};
+
 export const ManifestoPage = () => {
+  useRouteMeta(MANIFESTO_META);
   return (
     <main className="min-h-screen bg-[#070b12] text-white font-sans">
       <Breadcrumbs
         items={[
           { label: 'Protocol', href: '/' },
-          { label: 'Documentation', href: '/?view=docs' },
+          { label: 'Documentation', href: '/docs' },
           { label: 'Manifesto' },
         ]}
       />
@@ -243,7 +253,7 @@ export const ManifestoPage = () => {
               Status: Draft for Review and Ratification. This publication does not represent a ratified constitutional artifact.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-              <a href="/?view=docs" className="inline-flex items-center justify-center rounded-xl border border-white/15 px-6 py-3 text-sm font-semibold text-white/85 transition hover:border-white/30">
+              <a href="/docs" className="inline-flex items-center justify-center rounded-xl border border-white/15 px-6 py-3 text-sm font-semibold text-white/85 transition hover:border-white/30">
                 Back to documentation
               </a>
               <a href="/" className="inline-flex items-center justify-center rounded-xl bg-cyan-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200">

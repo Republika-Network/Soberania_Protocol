@@ -21,7 +21,7 @@ const protocolLinks: FooterItem[] = [
 ]
 
 const sharedNavigationLinks: FooterItem[] = [
-  { label: 'Docs', href: '/?view=docs' },
+  { label: 'Docs', href: '/docs' },
   { label: 'About', href: '/?view=about' },
   { label: 'Contact Us', href: '/?view=contact' },
   { label: 'GitHub', href: REPOSITORY_URL, external: true },
