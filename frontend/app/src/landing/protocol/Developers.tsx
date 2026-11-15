@@ -8,6 +8,7 @@ import { SoberaniaMark } from './SoberaniaMark';
 // every status shown here is read from content.ts so it changes in one place.
 const STATUS_TONE: Record<AvailabilityStatus, string> = {
   'Available from source': 'border-slate-900/40 font-semibold text-slate-900',
+  'Not yet available': 'border-slate-500/40 text-slate-700',
   'Internal candidate': 'border-amber-700/30 text-amber-800',
   'Prepared, not published': 'border-violet-700/30 text-violet-800',
   Proposed: 'border-slate-500/40 text-slate-700',
@@ -74,7 +75,7 @@ provenance?.name     // 'Provenance'`}</code></pre>
           </div>
 
           <div>
-            <h3 id="availability" className="font-mono text-[11px] font-bold tracking-[.18em] text-violet-800 uppercase">Availability today</h3>
+            <h3 id="availability" className="font-mono text-[11px] font-bold tracking-[.18em] text-violet-800 uppercase">Ways to use Soberanía</h3>
             <dl className="mt-6 divide-y divide-slate-900/10 border-y border-slate-900/10" aria-labelledby="availability">
               {AVAILABILITY.map((row) => (
                 <div key={row.item} className="grid gap-2 py-4 sm:grid-cols-[11rem_1fr] sm:gap-6">

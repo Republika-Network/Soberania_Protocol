@@ -200,15 +200,21 @@ export const INTEGRATION_POINTS: IntegrationPoint[] = [
   },
 ];
 
-export type AvailabilityStatus = 'Available from source' | 'Internal candidate' | 'Prepared, not published' | 'Proposed' | 'Not claimed';
+export type AvailabilityStatus =
+  | 'Available from source'
+  | 'Not yet available'
+  | 'Proposed'
+  | 'Internal candidate'
+  | 'Prepared, not published'
+  | 'Not claimed';
 
 export type AvailabilityRow = { item: string; status: AvailabilityStatus; detail: string };
 
 export const AVAILABILITY: AvailabilityRow[] = [
   {
-    item: 'Protocol contracts',
+    item: 'Free protocol adoption',
     status: 'Available from source',
-    detail: 'Identity, canonical JSON, manifests, proofs and claims, under Apache-2.0. Release candidate 0.2.0-rc.3; build it from the repository.',
+    detail: 'Apache-2.0. No fee, no account and no Frontera required. Contracts are at release candidate 0.2.0-rc.3; build them from the repository.',
   },
   {
     item: 'Eight sovereignty capabilities',
@@ -216,9 +222,19 @@ export const AVAILABILITY: AvailabilityRow[] = [
     detail: 'All eight are canonical, versioned contracts (1.0.0). Declaring a capability is not the same as enforcing it.',
   },
   {
+    item: 'Technical conformity',
+    status: 'Not yet available',
+    detail: 'There is no published conformance suite or conformity mark yet. The repository\'s consumer fixtures and integration contract let you check your own integration.',
+  },
+  {
+    item: 'Soberanía Assured',
+    status: 'Proposed',
+    detail: 'A future commercial program for continuous assurance, powered by Frontera. It is not offered today.',
+  },
+  {
     item: 'Optional SDK',
     status: 'Internal candidate',
-    detail: 'Not public yet, and not required to use the protocol.',
+    detail: 'Not public yet and pending independent security review before release. You never need it to use the protocol.',
   },
   {
     item: 'npm packages',
@@ -231,3 +247,15 @@ export const AVAILABILITY: AvailabilityRow[] = [
     detail: 'No component is presented as independently audited, certified or production-ready.',
   },
 ];
+
+// "03 / From protocol to systems" — the proposed commercial program. It must
+// stay labelled as proposed until it actually operates: no enrolment,
+// monitoring or certification is running. It is separate from the AI risk
+// assessment sold today under /assurance/intelligence-risk.
+export const ASSURED_PROPOSAL = {
+  status: 'Proposed · not yet available',
+  name: 'Soberanía Assured, powered by Frontera',
+  body: 'A planned program for platforms that choose to take part: continuous verification of their conformance to approved Soberanía controls, with enforcement by Frontera. It is not operating today. No platform is enrolled, monitored or certified, and it is separate from the AI risk assessment offered today.',
+  limits:
+    'It could only ever cover systems that cooperate. It cannot control documents inside applications that do not take part, and it cannot recall information already disclosed in plaintext. Soberanía Protocol itself never requires it.',
+};

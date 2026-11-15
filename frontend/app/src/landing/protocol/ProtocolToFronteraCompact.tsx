@@ -1,4 +1,5 @@
 import { FRONTERA_SYSTEMS_URL } from '../brand';
+import { ASSURED_PROPOSAL } from './content';
 
 export function ProtocolToFronteraCompact() {
   return (
@@ -17,6 +18,12 @@ export function ProtocolToFronteraCompact() {
             <a href={FRONTERA_SYSTEMS_URL} target="_blank" rel="noreferrer" className="mt-7 inline-flex border border-violet-300/28 px-5 py-3 text-sm font-semibold text-violet-100 transition hover:border-violet-200/50 hover:bg-white/[.04]">
               Explore Frontera Systems →
             </a>
+            <aside className="mt-10 max-w-xl border-l border-violet-300/30 pl-5" aria-labelledby="assured-proposal">
+              <p className="font-mono text-[11px] tracking-[.14em] text-violet-200/70 uppercase">{ASSURED_PROPOSAL.status}</p>
+              <h3 id="assured-proposal" className="soberania-serif mt-2 text-2xl text-white">{ASSURED_PROPOSAL.name}</h3>
+              <p className="mt-3 text-[14px] leading-6 text-white/62">{ASSURED_PROPOSAL.body}</p>
+              <p className="mt-3 text-[14px] leading-6 text-white/50">{ASSURED_PROPOSAL.limits}</p>
+            </aside>
           </div>
 
           <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-center">

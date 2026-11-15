@@ -35,6 +35,9 @@ describe('Developers section', () => {
     for (const row of AVAILABILITY) expect(screen.getByText(row.item)).toBeInTheDocument();
     expect(screen.getByText('npm packages').closest('div')).toHaveTextContent('Prepared, not published');
     expect(screen.getByText('Optional SDK').closest('div')).toHaveTextContent('Internal candidate');
+    expect(screen.getByText('Soberanía Assured').closest('div')).toHaveTextContent('Proposed');
+    expect(screen.getByText('Technical conformity').closest('div')).toHaveTextContent('Not yet available');
+    expect(screen.getByText('Free protocol adoption').closest('div')).toHaveTextContent('no Frontera required');
     expect(container).not.toHaveTextContent(/npm (i|install) /);
     expect(container).not.toHaveTextContent(/is production-ready/i);
   });
