@@ -43,12 +43,13 @@ Compare the tarball's SHA-256 with the value recorded for that version under `do
 ```bash
 # NOT AVAILABLE YET: these packages do not exist on npm today.
 npm install --save-exact @soberania-protocol/protocol@<version>
-# optional, only if you use the SDK; install it together with the exact protocol version it peers on:
+# optional, only if you use the SDK; install it with the protocol version named in its release notes:
 npm install --save-exact @soberania-protocol/protocol@<version> @soberania-protocol/sdk@<version>
 ```
 
-The SDK declares the protocol as an **exact-version peer**. Check that only one copy of the protocol is
-installed: `npm ls @soberania-protocol/protocol` must show a single version.
+When published, the SDK is intended to pair with an exact protocol version; install both at the versions
+stated in its release notes. Check that only one copy of the protocol is installed:
+`npm ls @soberania-protocol/protocol` must show a single version.
 
 ## 4. Migrating imports
 
