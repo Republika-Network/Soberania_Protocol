@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import { SOBERANIA_PROTOCOL_URL } from '../brand';
 
 const PAGE_URL = `${SOBERANIA_PROTOCOL_URL}/`;
-const TITLE = 'Soberanía Protocol — An Open Protocol for Digital Assets, Capabilities & Sovereignty';
+const TITLE = 'Soberanía Protocol — An Open Foundation for Verifiable Digital Sovereignty';
 const DESCRIPTION =
-  "Soberanía Protocol is an open, provider-neutral protocol for digital assets — identity, integrity, provenance, capabilities and sovereignty that compatible systems can interpret. Frontera Systems operationalizes governance on top of it.";
+  "Soberanía Protocol is an open, provider-neutral contract layer for verifiable digital sovereignty: identity, integrity, provenance, portability and licensing terms that compatible systems can verify. Modular, usable off-chain, Apache-2.0.";
 
 // Per-page metadata injection so the root URL's live document head matches
 // the Protocol thesis instead of the static index.html defaults (which are
