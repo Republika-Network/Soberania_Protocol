@@ -1,11 +1,11 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { renderDocsPage } from './DocsPage';
+import { DocsPage } from './DocsPage';
 import { ProtocolToEnterprise } from './protocol/ProtocolToEnterprise';
 
 describe('public Protocol developer journey', () => {
   it('renders Protocol documentation without the former Enterprise control-plane framing', () => {
-    const { container } = render(renderDocsPage());
+    const { container } = render(<DocsPage />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Build with sovereign digital assets.' })).toBeInTheDocument();
     expect(screen.getByLabelText('Breadcrumb')).toHaveTextContent(/Protocol.*Documentation/);
@@ -37,7 +37,7 @@ describe('public Protocol developer journey', () => {
   });
 
   it('gives build-from-source steps that work and the current candidate version', () => {
-    const { container } = render(renderDocsPage());
+    const { container } = render(<DocsPage />);
 
     expect(container).toHaveTextContent('cd Soberania_Protocol');
     expect(container).not.toHaveTextContent('cd Architects_of_Change_Protocol');
@@ -46,7 +46,7 @@ describe('public Protocol developer journey', () => {
   });
 
   it('announces the future npm names without an install command that would fail today', () => {
-    const { container } = render(renderDocsPage());
+    const { container } = render(<DocsPage />);
 
     expect(container.querySelector('#package-identity')).toHaveTextContent('Prepared for upcoming publication');
     expect(container).toHaveTextContent('@soberania-protocol/protocol');
@@ -56,7 +56,7 @@ describe('public Protocol developer journey', () => {
   });
 
   it('names Frontera Systems as optional and drops the retired Enterprise brand', () => {
-    const { container } = render(renderDocsPage());
+    const { container } = render(<DocsPage />);
 
     expect(container).not.toHaveTextContent('Soberanía Enterprise');
     expect(container).toHaveTextContent('Frontera Systems · optional commercial layer');
@@ -64,7 +64,7 @@ describe('public Protocol developer journey', () => {
   });
 
   it('declares its own canonical URL instead of inheriting the homepage', () => {
-    render(renderDocsPage());
+    render(<DocsPage />);
 
     expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute('href', 'https://soberaniaprotocol.org/docs');
     expect(document.title).toBe('Documentation — Soberanía Protocol');

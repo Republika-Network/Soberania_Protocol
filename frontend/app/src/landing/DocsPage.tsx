@@ -24,8 +24,6 @@ const assetProperties = [
   ['Compatibility', 'Public schemas and adapter interfaces provide common meaning; support still depends on each implementation.'],
 ];
 
-export const renderDocsPage = () => <DocsPage />;
-
 const DOCS_META = {
   path: '/docs',
   title: 'Documentation — Soberanía Protocol',
@@ -33,20 +31,20 @@ const DOCS_META = {
     'Developer documentation for Soberanía Protocol: public contract entry points, the sovereign asset model, build-from-source instructions and the current availability of each component.',
 };
 
-function DocsPage() {
-  useRouteMeta(DOCS_META);
-  const LinkCard = ({ href, title, children }: { href: string; title: string; children: React.ReactNode }) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition hover:border-cyan-300/40 hover:bg-cyan-300/[0.04]"
-    >
-      <h3 className="font-semibold text-cyan-200 group-hover:text-cyan-100">{title} <span aria-hidden>↗</span></h3>
-      <p className="mt-3 text-sm leading-7 text-white/60">{children}</p>
-    </a>
-  );
+const LinkCard = ({ href, title, children }: { href: string; title: string; children: React.ReactNode }) => (
+  <a
+    href={href}
+    target="_blank"
+    rel="noreferrer"
+    className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition hover:border-cyan-300/40 hover:bg-cyan-300/[0.04]"
+  >
+    <h3 className="font-semibold text-cyan-200 group-hover:text-cyan-100">{title} <span aria-hidden>↗</span></h3>
+    <p className="mt-3 text-sm leading-7 text-white/60">{children}</p>
+  </a>
+);
 
+export function DocsPage() {
+  useRouteMeta(DOCS_META);
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-white font-sans">
       <Breadcrumbs items={[{ label: 'Protocol', href: '/' }, { label: 'Documentation' }]} />

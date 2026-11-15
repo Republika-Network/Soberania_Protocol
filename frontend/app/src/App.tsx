@@ -11,7 +11,7 @@ import { WhatIsAiSovereigntyPage } from './landing/WhatIsAiSovereigntyPage';
 import { renderEnterprisePage } from './landing/EnterprisePage';
 import { CapabilityDetailPage } from './landing/enterprise/CapabilityDetailPage';
 import { GovernedAccessPage } from './landing/enterprise/GovernedAccessPage';
-import { renderDocsPage } from './landing/DocsPage';
+import { DocsPage } from './landing/DocsPage';
 import { renderContactPage } from './landing/ContactPage';
 import { renderAboutPage } from './landing/AboutPage';
 import { ManifestoPage } from './landing/ManifestoPage';
@@ -61,10 +61,10 @@ export default function App() {
   if (pathname === '/ai-governance-vs-ai-sovereignty') return <GovVsSovPage />;
   if (pathname === '/research') return <ResearchHubPage />;
   if (pathname === '/what-is-ai-sovereignty') return <WhatIsAiSovereigntyPage />;
-  if (pathname === '/docs') return renderDocsPage();
+  if (pathname === '/docs') return <DocsPage />;
   if (pathname === '/docs/manifesto') return <ManifestoPage />;
   if (view === 'assurance') return renderAssurancePage();
-  if (view === 'docs') return renderDocsPage();
+  if (view === 'docs') return <DocsPage />;
   if (view === 'enterprise') return renderEnterprisePage();
   if (view === 'governed-access') return <GovernedAccessPage />;
   if (view === 'capability') {
