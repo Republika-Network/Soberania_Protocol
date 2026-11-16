@@ -14,7 +14,7 @@ const NAV_ITEMS: { label: string; href: string; external?: boolean }[] = [
   { label: 'Digital Assets', href: '/#digital-asset' },
   { label: 'For Builders', href: '/#developers' },
   { label: 'Frontera', href: FRONTERA_SYSTEMS_URL, external: true },
-  { label: 'Docs', href: '/?view=docs' },
+  { label: 'Docs', href: '/docs' },
 ];
 
 const CTA_HREF = '/#sovereign-sphere';
@@ -82,9 +82,6 @@ export function ProtocolNav() {
               {item.label}
             </a>
           ))}
-          <a href="/app" onClick={() => setOpen(false)}>
-            Launch app
-          </a>
           <a href={CTA_HREF} onClick={() => setOpen(false)} className="sob-btn sob-btn--navy">
             Explore the protocol <span aria-hidden="true">→</span>
           </a>

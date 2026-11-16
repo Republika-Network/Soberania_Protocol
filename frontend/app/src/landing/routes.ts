@@ -14,11 +14,11 @@ export const ROUTES = {
   protocol: '/',
   about: '/?view=about',
   contact: '/?view=contact',
-  docs: '/?view=docs',
+  docs: '/docs',
   enterprise: {
     overview: '/?view=enterprise',
     architecture: '/?view=enterprise#architecture',
-    developers: '/?view=docs',
+    developers: '/docs',
     solutions: {
       governedAccess: '/?view=governed-access',
     },

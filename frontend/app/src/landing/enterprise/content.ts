@@ -37,7 +37,7 @@ export const ENTERPRISE_NAV_ITEMS: NavEntry[] = [
   { label: 'Solutions', children: [{ label: 'Governed Access', href: '/?view=governed-access' }] },
   { label: 'Services', children: [{ label: 'Assurance', href: '/?view=assurance' }] },
   { label: 'Architecture', href: '/?view=enterprise#architecture' },
-  { label: 'Developers', href: '/?view=docs' },
+  { label: 'Developers', href: '/docs' },
 ];
 
 // The capability catalog — a flat set of governed powers an architecture can be

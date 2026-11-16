@@ -74,7 +74,7 @@ export function Hero() {
           <a href="#sovereign-sphere" className="sob-btn sob-btn--primary">
             Explore the protocol <span aria-hidden="true">→</span>
           </a>
-          <a href="/?view=docs" className="sob-btn sob-btn--ghost">
+          <a href="/docs" className="sob-btn sob-btn--ghost">
             Read the docs
           </a>
         </div>

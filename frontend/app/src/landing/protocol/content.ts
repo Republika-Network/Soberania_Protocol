@@ -9,7 +9,7 @@
 export type ClaimStatus = 'Reference Model' | 'Future Direction';
 
 export const STATUS_COPY: Record<ClaimStatus, string> = {
-  'Reference Model': 'Defined as a canonical contract in @aoc/protocol today.',
+  'Reference Model': 'Defined as a canonical contract in the protocol package today.',
   'Future Direction': 'Not yet defined as a canonical contract — a protocol direction.',
 };
 
@@ -117,9 +117,9 @@ export const CAPABILITY_FAMILIES: CapabilityFamily[] = [
     id: 'licensing',
     protocolKey: 'licensing_terms',
     name: 'Licensing & Terms',
-    status: 'Future Direction',
+    status: 'Reference Model',
     summary:
-      'Would carry the terms that define how the asset may be accessed, used or shared — a protocol direction, not yet a canonical contract.',
+      'Carries machine-readable declarations of how the asset may be accessed, used or shared. Declared terms are not an access grant, runtime enforcement, legal validity or guaranteed compliance, and participating applications do not enforce them automatically.',
   },
   {
     id: 'governance-compatibility',
@@ -175,3 +175,87 @@ export const BUILDER_AUDIENCES: BuilderAudience[] = [
   { name: 'AI and data platforms', summary: 'that need datasets and model files to carry verifiable origin.' },
   { name: 'Infrastructure providers', summary: 'implementing adapters so their systems interoperate with compatible assets.' },
 ];
+
+// "04 / For builders" — how a builder adopts the protocol, and what is
+// actually available today. Every statement here must stay true of the public
+// repository's main branch; when a status changes, change it here first.
+export type IntegrationPoint = { title: string; body: string };
+
+export const INTEGRATION_POINTS: IntegrationPoint[] = [
+  {
+    title: 'Adopt one capability at a time',
+    body: 'Each entry point (identity, canonical JSON, manifests, claims, portability and the rest) is a separate, versioned contract. Use the ones you need and ignore the others.',
+  },
+  {
+    title: 'The SDK is optional',
+    body: 'A thin composition layer over the same capabilities is being prepared. You never need it to use the protocol contracts directly.',
+  },
+  {
+    title: 'No chain required',
+    body: 'Records are canonical JSON with Ed25519 proofs and SHA-256 content identities. They work off-chain and assume no ledger. Adapters are provider-neutral interfaces.',
+  },
+  {
+    title: 'No Frontera dependency',
+    body: 'The protocol package has no runtime dependencies and needs no hosted service. Frontera Systems is one optional product built on top of it.',
+  },
+];
+
+export type AvailabilityStatus =
+  | 'Available from source'
+  | 'Not yet available'
+  | 'Proposed'
+  | 'Internal candidate'
+  | 'Prepared, not published'
+  | 'Not claimed';
+
+export type AvailabilityRow = { item: string; status: AvailabilityStatus; detail: string };
+
+export const AVAILABILITY: AvailabilityRow[] = [
+  {
+    item: 'Free protocol adoption',
+    status: 'Available from source',
+    detail: 'Apache-2.0. No fee, no account and no Frontera required. Contracts are at release candidate 0.2.0-rc.3; build them from the repository.',
+  },
+  {
+    item: 'Eight sovereignty capabilities',
+    status: 'Available from source',
+    detail: 'All eight are canonical, versioned contracts (1.0.0). Declaring a capability is not the same as enforcing it.',
+  },
+  {
+    item: 'Technical conformity',
+    status: 'Not yet available',
+    detail: 'There is no published conformance suite or conformity mark yet. The repository\'s consumer fixtures and integration contract let you check your own integration.',
+  },
+  {
+    item: 'Soberanía Assured',
+    status: 'Proposed',
+    detail: 'A future commercial program for continuous assurance, powered by Frontera. It is not offered today.',
+  },
+  {
+    item: 'Optional SDK',
+    status: 'Internal candidate',
+    detail: 'Not public yet and pending independent security review before release. You never need it to use the protocol.',
+  },
+  {
+    item: 'npm packages',
+    status: 'Prepared, not published',
+    detail: '@soberania-protocol/protocol and @soberania-protocol/sdk. There is no install command until they are published.',
+  },
+  {
+    item: 'Independent certification',
+    status: 'Not claimed',
+    detail: 'No component is presented as independently audited, certified or production-ready.',
+  },
+];
+
+// "03 / From protocol to systems" — the proposed commercial program. It must
+// stay labelled as proposed until it actually operates: no enrolment,
+// monitoring or certification is running. It is separate from the AI risk
+// assessment sold today under /assurance/intelligence-risk.
+export const ASSURED_PROPOSAL = {
+  status: 'Proposed · not yet available',
+  name: 'Soberanía Assured, powered by Frontera',
+  body: 'A planned program for platforms that choose to take part: continuous verification of their conformance to approved Soberanía controls, with enforcement by Frontera. It is not operating today. No platform is enrolled, monitored or certified, and it is separate from the AI risk assessment offered today.',
+  limits:
+    'It could only ever cover systems that cooperate. It cannot control documents inside applications that do not take part, and it cannot recall information already disclosed in plaintext. Soberanía Protocol itself never requires it.',
+};

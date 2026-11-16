@@ -27,7 +27,7 @@ describe('Protocol closing handoff', () => {
       'href',
       'https://github.com/Republika-Network/Soberania_Protocol/tree/main/packages/protocol',
     );
-    expect(links[1]).toHaveAttribute('href', '/?view=docs');
+    expect(links[1]).toHaveAttribute('href', '/docs');
     expect(screen.queryByRole('link', { name: /enterprise/i })).not.toBeInTheDocument();
   });
 
